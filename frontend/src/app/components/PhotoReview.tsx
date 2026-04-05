@@ -17,6 +17,11 @@ interface ReadingWithMeter {
   photo_url: string | null
   notes: string | null
   reading_type: string
+  metadata?: {
+    review_status?: 'pending' | 'verified' | 'flagged'
+    reviewed_at?: string
+    [key: string]: any
+  }
   meters: {
     meter_number: string
     address: string

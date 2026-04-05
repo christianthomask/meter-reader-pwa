@@ -109,7 +109,7 @@ export default function NewReading() {
         previous_value: previousValue,
         delta_value: deltaValue,
         cost,
-        metadata: JSON.stringify(metadata),
+        metadata,
         photo_url: formData.photo_url || null,
       })
       .select()

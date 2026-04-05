@@ -11,12 +11,15 @@ interface PhotoReviewProps {
 interface ReadingWithMeter {
   id: string
   meter_id: string
+  reader_id: string | null
   reading_timestamp: string
   value: number
   unit: string
   photo_url: string | null
   notes: string | null
+  reader_notes: string | null
   reading_type: string
+  status: 'pending' | 'approved' | 'rejected' | 'certified'
   metadata?: {
     review_status?: 'pending' | 'verified' | 'flagged'
     reviewed_at?: string
@@ -29,6 +32,11 @@ interface ReadingWithMeter {
     city: string
     zip_code: string
     meter_type: string
+  } | null
+  readers: {
+    full_name: string
+    email: string
+    phone: string | null
   } | null
   review_status?: 'pending' | 'verified' | 'flagged'
   uploaded_by?: string
@@ -49,18 +57,19 @@ export function PhotoReview({ onClose }: PhotoReviewProps) {
   const [readings, setReadings] = useState<ReadingWithMeter[]>([])
   const [loading, setLoading] = useState(true)
   const [viewMode, setViewMode] = useState<ViewMode>('grid')
-  const [filterStatus, setFilterStatus] = useState<FilterStatus>('all')
   const [selectedRoute, setSelectedRoute] = useState<string>('all')
-  const [selectedCrew, setSelectedCrew] = useState<string>('all')
+  const [selectedReader, setSelectedReader] = useState<string>('all')
+  const [startDate, setStartDate] = useState<string>('')
+  const [endDate, setEndDate] = useState<string>('')
   const [selectedPhoto, setSelectedPhoto] = useState<ReadingWithMeter | null>(null)
   const [routes, setRoutes] = useState<string[]>([])
-  const [crewMembers, setCrewMembers] = useState<{id: string, name: string}[]>([])
+  const [readerMembers, setReaderMembers] = useState<{id: string, name: string}[]>([])
 
   useEffect(() => {
     loadPhotos()
     loadRoutes()
-    loadCrewMembers()
-  }, [filterStatus, selectedRoute, selectedCrew])
+    loadReaderMembers()
+  }, [selectedRoute, selectedReader, startDate, endDate])
 
   async function loadPhotos() {
     setLoading(true)
@@ -75,19 +84,35 @@ export function PhotoReview({ onClose }: PhotoReviewProps) {
           city,
           zip_code,
           meter_type
+        ),
+        readers (
+          full_name,
+          email,
+          phone
         )
       `)
-      .not('photo_url', 'is', null)
+      .eq('status', 'pending')
       .order('reading_timestamp', { ascending: false })
-      .limit(100)
+      .limit(200)
 
-    if (filterStatus === 'pending') {
-      // Pending = no review metadata or review_status = 'pending'
-      query = query.or('metadata->>review_status.is.null,metadata->>review_status.eq.pending')
-    } else if (filterStatus === 'verified') {
-      query = query.eq('metadata->>review_status', 'verified')
-    } else if (filterStatus === 'flagged') {
-      query = query.eq('metadata->>review_status', 'flagged')
+    // Filter by reader
+    if (selectedReader !== 'all') {
+      query = query.eq('reader_id', selectedReader)
+    }
+
+    // Filter by route (zip_code)
+    if (selectedRoute !== 'all') {
+      query = query.eq('meters.zip_code', selectedRoute)
+    }
+
+    // Filter by date range
+    if (startDate) {
+      query = query.gte('reading_timestamp', new Date(startDate).toISOString())
+    }
+    if (endDate) {
+      const end = new Date(endDate)
+      end.setDate(end.getDate() + 1)
+      query = query.lte('reading_timestamp', end.toISOString())
     }
 
     const { data, error } = await query
@@ -113,16 +138,17 @@ export function PhotoReview({ onClose }: PhotoReviewProps) {
     }
   }
 
-  async function loadCrewMembers() {
+  async function loadReaderMembers() {
     const { data, error } = await supabase
-      .from('users')
-      .select('id, email, full_name')
+      .from('readers')
+      .select('id, full_name, email')
+      .eq('active', true)
       .order('full_name')
     
     if (data) {
-      setCrewMembers(data.map(m => ({
+      setReaderMembers(data.map(m => ({
         id: m.id,
-        name: m.full_name || m.email
+        name: m.full_name
       })))
     }
   }
@@ -160,8 +186,11 @@ export function PhotoReview({ onClose }: PhotoReviewProps) {
     }
   }
 
-  function getReviewStatus(reading: ReadingWithMeter): 'pending' | 'verified' | 'flagged' {
-    return (reading.metadata?.review_status as any) || 'pending'
+  function clearFilters() {
+    setSelectedRoute('all')
+    setSelectedReader('all')
+    setStartDate('')
+    setEndDate('')
   }
 
   function filteredReadings() {
@@ -171,8 +200,8 @@ export function PhotoReview({ onClose }: PhotoReviewProps) {
       filtered = filtered.filter(r => r.meters?.zip_code === selectedRoute)
     }
     
-    if (selectedCrew !== 'all') {
-      filtered = filtered.filter(r => r.uploaded_by === selectedCrew || r.metadata?.uploaded_by === selectedCrew)
+    if (selectedReader !== 'all') {
+      filtered = filtered.filter(r => r.reader_id === selectedReader)
     }
     
     return filtered
@@ -215,16 +244,16 @@ export function PhotoReview({ onClose }: PhotoReviewProps) {
         {/* Filters */}
         <div className="flex flex-wrap gap-3 items-center">
           <div className="flex items-center gap-2">
-            <Filter size={16} className="text-gray-500" />
+            <User size={16} className="text-gray-500" />
             <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value as FilterStatus)}
+              value={selectedReader}
+              onChange={(e) => setSelectedReader(e.target.value)}
               className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
             >
-              <option value="all">All Photos</option>
-              <option value="pending">Pending Review</option>
-              <option value="verified">Verified</option>
-              <option value="flagged">Flagged</option>
+              <option value="all">All Readers</option>
+              {readerMembers.map(reader => (
+                <option key={reader.id} value={reader.id}>{reader.name}</option>
+              ))}
             </select>
           </div>
 
@@ -243,23 +272,35 @@ export function PhotoReview({ onClose }: PhotoReviewProps) {
           </div>
 
           <div className="flex items-center gap-2">
-            <User size={16} className="text-gray-500" />
-            <select
-              value={selectedCrew}
-              onChange={(e) => setSelectedCrew(e.target.value)}
+            <Calendar size={16} className="text-gray-500" />
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
               className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="all">All Crew</option>
-              {crewMembers.map(crew => (
-                <option key={crew.id} value={crew.id}>{crew.name}</option>
-              ))}
-            </select>
+              placeholder="Start date"
+            />
+            <span className="text-gray-500 text-sm">to</span>
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+              placeholder="End date"
+            />
           </div>
 
           <div className="flex-1" />
 
+          <button
+            onClick={clearFilters}
+            className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-800 transition-colors"
+          >
+            Clear Filters
+          </button>
+
           <div className="text-sm text-gray-600">
-            {displayReadings.length} photo{displayReadings.length !== 1 ? 's' : ''}
+            {displayReadings.length} reading{displayReadings.length !== 1 ? 's' : ''}
           </div>
         </div>
       </div>
@@ -272,12 +313,12 @@ export function PhotoReview({ onClose }: PhotoReviewProps) {
           </div>
         ) : displayReadings.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-gray-500">
-            <Grid size={64} className="mb-4 text-gray-300" />
-            <p className="text-lg font-medium">No photos found</p>
-            <p className="text-sm mt-1">
-              {filterStatus === 'all' 
-                ? 'Submit readings with photos to see them here'
-                : `No ${filterStatus} photos`}
+            <div className="bg-green-100 rounded-full p-4 mb-4">
+              <CheckCircle size={48} className="text-green-600" />
+            </div>
+            <p className="text-lg font-medium text-gray-900">All caught up!</p>
+            <p className="text-sm mt-1 text-gray-600">
+              No pending readings to review
             </p>
           </div>
         ) : viewMode === 'grid' ? (
@@ -332,11 +373,11 @@ function PhotoCard({
   onVerify: () => void
   onFlag: () => void
 }) {
-  const status = (reading.metadata?.review_status as any) || 'pending'
+  const status = reading.status
 
   return (
     <div className={`bg-white rounded-lg shadow-sm border overflow-hidden hover:shadow-md transition-shadow ${
-      status === 'verified' ? 'border-green-200' : status === 'flagged' ? 'border-red-200' : 'border-gray-200'
+      status === 'approved' ? 'border-green-200' : status === 'rejected' ? 'border-red-200' : 'border-gray-200'
     }`}>
       {/* Photo Thumbnail */}
       <div className="relative aspect-square bg-gray-100 cursor-pointer" onClick={onView}>
@@ -354,7 +395,11 @@ function PhotoCard({
         
         {/* Status Badge */}
         <div className="absolute top-2 right-2">
-          <span className={`px-2 py-1 rounded text-xs font-medium border ${getStatusBadgeClass(status)}`}>
+          <span className={`px-2 py-1 rounded text-xs font-medium border ${
+            status === 'approved' ? 'bg-green-100 text-green-700 border-green-200' :
+            status === 'rejected' ? 'bg-red-100 text-red-700 border-red-200' :
+            'bg-yellow-100 text-yellow-700 border-yellow-200'
+          }`}>
             {status}
           </span>
         </div>
@@ -380,8 +425,17 @@ function PhotoCard({
           {reading.meters?.address}, {reading.meters?.city}
         </div>
 
-        <div className="flex items-center justify-between text-xs">
-          <span className="text-gray-600">Reading: <span className="font-medium">{reading.value.toLocaleString()} {reading.unit}</span></span>
+        <div className="space-y-1 text-xs">
+          <div className="flex justify-between">
+            <span className="text-gray-600">Reading:</span>
+            <span className="font-medium">{reading.value.toLocaleString()} {reading.unit}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-600">Reader:</span>
+            <span className="font-medium truncate max-w-[120px]">
+              {reading.readers?.full_name || 'Unknown'}
+            </span>
+          </div>
         </div>
 
         {/* Actions */}
@@ -392,14 +446,14 @@ function PhotoCard({
               className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 bg-green-600 text-white rounded hover:bg-green-700 transition-colors text-xs"
             >
               <CheckCircle size={12} />
-              Verify
+              Approve
             </button>
             <button
               onClick={onFlag}
               className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 bg-red-600 text-white rounded hover:bg-red-700 transition-colors text-xs"
             >
               <Flag size={12} />
-              Flag
+              Reject
             </button>
           </div>
         )}
@@ -420,11 +474,11 @@ function PhotoListItem({
   onVerify: () => void
   onFlag: () => void
 }) {
-  const status = (reading.metadata?.review_status as any) || 'pending'
+  const status = reading.status
 
   return (
     <div className={`bg-white rounded-lg shadow-sm border p-3 flex items-center gap-3 hover:shadow-md transition-shadow ${
-      status === 'verified' ? 'border-green-200' : status === 'flagged' ? 'border-red-200' : 'border-gray-200'
+      status === 'approved' ? 'border-green-200' : status === 'rejected' ? 'border-red-200' : 'border-gray-200'
     }`}>
       {/* Thumbnail */}
       <div 
@@ -448,15 +502,25 @@ function PhotoListItem({
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-1">
           <span className="font-medium text-gray-900">{reading.meters?.meter_number || 'N/A'}</span>
-          <span className={`px-2 py-0.5 rounded text-xs font-medium border ${getStatusBadgeClass(status)}`}>
+          <span className={`px-2 py-0.5 rounded text-xs font-medium border ${
+            status === 'approved' ? 'bg-green-100 text-green-700 border-green-200' :
+            status === 'rejected' ? 'bg-red-100 text-red-700 border-red-200' :
+            'bg-yellow-100 text-yellow-700 border-yellow-200'
+          }`}>
             {status}
           </span>
         </div>
         <div className="text-sm text-gray-600 truncate">
           {reading.meters?.address}, {reading.meters?.city}
         </div>
-        <div className="text-xs text-gray-500">
-          {new Date(reading.reading_timestamp).toLocaleString()} • {reading.value.toLocaleString()} {reading.unit}
+        <div className="text-xs text-gray-500 flex items-center gap-2">
+          <span>{new Date(reading.reading_timestamp).toLocaleString()}</span>
+          <span>•</span>
+          <span>{reading.value.toLocaleString()} {reading.unit}</span>
+          <span>•</span>
+          <span className="truncate max-w-[150px]">
+            {reading.readers?.full_name || 'Unknown'}
+          </span>
         </div>
       </div>
 
@@ -466,14 +530,14 @@ function PhotoListItem({
           <button
             onClick={onVerify}
             className="p-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
-            title="Verify"
+            title="Approve"
           >
             <CheckCircle size={16} />
           </button>
           <button
             onClick={onFlag}
             className="p-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
-            title="Flag for Re-visit"
+            title="Reject"
           >
             <Flag size={16} />
           </button>

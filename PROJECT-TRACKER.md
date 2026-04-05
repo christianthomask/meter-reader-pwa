@@ -1,9 +1,9 @@
 # Meter Reader PWA - Project Tracker
 
 **Project:** Meter Reader Manager Portal  
-**POC Version:** 0.3.0 (Managers-Only)  
+**Version:** 0.3.0 (Manager Review & Operations)  
 **Live Demo:** https://meter-reader-pwa.vercel.app  
-**Last Updated:** 2026-04-04  
+**Last Updated:** 2026-04-05  
 **Status:** 🟡 In Progress
 
 ---
@@ -11,46 +11,303 @@
 ## 📋 Project Overview
 
 ### Vision
-A Progressive Web App for **managers** to conduct meter reading operations with offline-first sync, GPS verification, and photo documentation.
+A **mobile-first Progressive Web App for managers** to review, approve, and manage meter reading operations. Readers submit readings via a separate workflow (existing or future reader app). Managers focus on **review, exception handling, route assignment, and reporting**.
 
-### Scope Clarification (2026-04-04)
-**This POC is managers-only.** There is no separate reader app or reader submission workflow. Managers perform readings directly and review their own photos.
+### Architecture Context
+```
+┌─────────────────┐         ┌──────────────────────┐         ┌─────────────────┐
+│   Reader App    │────────▶│  Manager Portal      │────────▶│  City/Backend   │
+│  (Separate)     │  Reads  │  (This PWA)          │  Export │  Systems        │
+│  - Field work   │         │  - Review & Approve  │         │  - CSV Download │
+│  - Photo capture│         │  - Route Assignment  │         │  - Reports      │
+│  - GPS capture  │         │  - Exception Mgmt    │         │                 │
+└─────────────────┘         └──────────────────────┘         └─────────────────┘
+```
+
+### Scope Clarification (2026-04-05)
+| Aspect | Corrected Understanding |
+|--------|------------------------|
+| **Reader Workflow** | ✅ Separate system (existing or future). Readers submit readings with photos + GPS. |
+| **Manager Workflow** | ✅ Review submitted readings, approve/reject exceptions, assign routes, export data. |
+| **Reading Submission** | ❌ Managers do NOT submit readings in this portal. They review reader submissions. |
+| **Photo Review** | ✅ Managers review photos submitted by readers (not their own). |
+| **Route Assignment** | ✅ Managers assign routes to readers (not self-assign). |
 
 ### Reference System Features (from Website Reference Guide)
-| Section | Original System | Managers-Only POC |
-|---------|----------------|-------------------|
+| Section | Original System | Manager Portal Coverage |
+|---------|----------------|------------------------|
 | Status Page | City cycle status, meter lookup | ✅ Keep - Manager dashboard |
-| Meter Review | Approve/Reject, photo vs. read, GPS verification | ✅ Core - Self-review workflow |
-| Load Manager | Assign routes to readers | ⚠️ Modified - Self-assign only |
-| City Data | Upload cycle files | ❌ Phase 2 |
-| Reports | General + reader reports | ⚠️ Partial - General only |
+| Meter Review | Approve/Reject, photo vs. read, GPS verification | ✅ Core - Review workflow |
+| Load Manager | Assign routes to readers | ✅ Keep - Reader assignment |
+| City Data | Upload cycle files | ❌ Phase 2 (Admin function) |
+| Reports | General + reader reports | ⚠️ Partial - Manager reports only |
 | Certified Reports | Exceptions, certificates | ❌ Phase 2 |
 | History | Cycle/meter reports | ✅ Keep - Reading history |
 
 ---
 
+## 📚 Legacy System Functionality Reference
+
+*Comprehensive mapping of all features from the legacy website (Website_Reference_guide.pdf)*
+
+### 1️⃣ Status Page (Legacy Page 2)
+
+| ID | Feature | Description | Priority | Coverage Status | Sprint/Phase | Notes |
+|----|---------|-------------|----------|-----------------|--------------|-------|
+| L1-01 | City Cycle Status Display | Shows city/cycle information and current status | High | ❌ Not covered | Sprint 2 | **Critical for context** |
+| L1-02 | Read Downloads | Download completed/approved reads when cycle is complete | High | ⚠️ Partial (D18) | Sprint 3 | CSV export covers this |
+| L1-03 | Prepare New Read Cycle | Link to start new cycle + initiate file upload | Low | ❌ Not covered | Phase 2 | Admin function |
+| L1-04 | Meter Lookup by ID | Search meters by meter ID | High | ⚠️ Planned (D13) | Sprint 2 | Core feature |
+| L1-05 | Meter Lookup by Address | Search meters by street address | High | ⚠️ Planned (D13) | Sprint 2 | Core feature |
+| L1-06 | Meter Lookup by Account Number | Search meters by customer account | Medium | ⚠️ Planned (D13) | Sprint 2 | May need account field |
+| L1-07 | Quick Reference Guides | Downloadable PDF guides | Low | ❌ Not covered | Backlog | Static content |
+| L1-08 | Sales/Support Contact Info | Display contact information | Low | ❌ Not covered | Backlog | Static content |
+
+### 2️⃣ Meter Review (Legacy Page 3) - **CORE MANAGER WORKFLOW**
+
+| ID | Feature | Description | Priority | Coverage Status | Sprint/Phase | Notes |
+|----|---------|-------------|----------|-----------------|--------------|-------|
+| L2-01 | Approve Meter Exception | Manager approves a submitted read | High | ⚠️ Planned (D11) | Sprint 2 | **Core workflow** |
+| L2-02 | Reject/Reread Meter | Mark read for field re-visit (sends back to reader) | High | ⚠️ Planned (D11) | Sprint 2 | **Core workflow** |
+| L2-03 | Read vs. Photo Comparison | Compare reading value against submitted photo | High | ⚠️ Planned (D16) | Sprint 3 | Enhanced review |
+| L2-04 | GPS vs. Address Verification | Verify GPS location matches meter address | High | ⚠️ Planned (D17) | Sprint 3 | Map display |
+| L2-05 | View Notes/Comments | Display notes attached to reading (from reader) | Medium | ⚠️ Planned (D14) | Sprint 2 | Required for review |
+| L2-06 | View Usage Data | Show historical usage during review | Medium | ⚠️ Planned (D15) | Sprint 3 | Context for approval |
+| L2-07 | Meter Exception Queue | List of reads pending review | High | ⚠️ Partial (D3) | Sprint 2 | **Photos tab - core feature** |
+
+### 3️⃣ Load Manager (Legacy Page 4) - **CORE MANAGER WORKFLOW**
+
+| ID | Feature | Description | Priority | Coverage Status | Sprint/Phase | Notes |
+|----|---------|-------------|----------|-----------------|--------------|-------|
+| L3-01 | Assign Routes to Readers | Manager assigns routes to available readers | High | ⚠️ Planned (D8) | Sprint 2 | **Core feature - needs reader mgmt** |
+| L3-02 | Split Routes | Temporarily split route between multiple readers | Low | ❌ Not covered | Phase 2 | Advanced feature |
+| L3-03 | Reader Selection List | Dropdown of available readers | High | ⚠️ Planned (D8) | Sprint 2 | **Required for assignment** |
+| L3-04 | Auto-Save Assignments | Route assignments save automatically | Medium | ⚠️ Planned (D8) | Sprint 2 | UX improvement |
+| L3-05 | View Assignment List | Display reader + route assignments | High | ⚠️ Partial (D2) | Sprint 2 | **Shows routes, needs reader names** |
+
+### 4️⃣ City Data Page (Legacy Pages 5-7)
+
+| ID | Feature | Description | Priority | Coverage Status | Sprint/Phase | Notes |
+|----|---------|-------------|----------|-----------------|--------------|-------|
+| L4-01 | City Status Management | Complete → Prepare → Active → Ready to Download | Low | ❌ Not covered | Phase 2 | Admin workflow |
+| L4-02 | Upload Cycle File | Upload city cycle data file | Low | ❌ Not covered | Phase 2 | Admin function |
+| L4-03 | Upload Customer File | Upload customer data file | Low | ❌ Not covered | Phase 2 | Admin function |
+| L4-04 | Upload Results Display | Show results/validation of file upload | Low | ❌ Not covered | Phase 2 | Feedback on import |
+| L4-05 | Download City Reads | Export completed reads for the city | Medium | ⚠️ Partial (D18) | Sprint 3 | CSV export covers this |
+| L4-06 | Load Manager Access | Access assignment tool during Active status | Medium | ⚠️ Planned (D8) | Sprint 2 | Always available |
+
+### 5️⃣ Reports Page (Legacy Page 8)
+
+| ID | Feature | Description | Priority | Coverage Status | Sprint/Phase | Notes |
+|----|---------|-------------|----------|-----------------|--------------|-------|
+| L5-01 | General Reports | Informational reports about system | Low | ❌ Not covered | Phase 2 | Analytics |
+| L5-02 | Current Read Cycle Reports | Editable data reports for active cycle | Medium | ❌ Not covered | Phase 2 | Operations |
+| L5-03 | Reader Reports | Performance metrics on readers | N/A | ⛔ Removed | N/A | Managers-only scope |
+
+### 6️⃣ Certified Reports (Legacy Page 9)
+
+| ID | Feature | Description | Priority | Coverage Status | Sprint/Phase | Notes |
+|----|---------|-------------|----------|-----------------|--------------|-------|
+| L6-01 | Certified Exceptions Report | Negative, Zero, Low, High usage exceptions | Low | ❌ Not covered | Phase 2 | Quality control |
+| L6-02 | City Certified Reports | Meters certified by the city | Low | ❌ Not covered | Phase 2 | External validation |
+| L6-03 | Certified Photo Data | Photos tied to certified reads | Low | ❌ Not covered | Phase 2 | Audit trail |
+| L6-04 | Certificate Lookup | Print certificate for specific meter | Low | ❌ Not covered | Phase 2 | Customer-facing |
+
+### 7️⃣ History Page (Legacy Page 10)
+
+| ID | Feature | Description | Priority | Coverage Status | Sprint/Phase | Notes |
+|----|---------|-------------|----------|-----------------|--------------|-------|
+| L7-01 | Select Cycle by Date/Range | Choose historical cycle to view | Medium | ⚠️ Planned (D9) | Sprint 2 | Filter functionality |
+| L7-02 | Run Reports on Meters | Generate reports for selected cycle | Low | ❌ Not covered | Phase 2 | Analytics |
+| L7-03 | Meter History Display | View historical readings for meter | High | ⚠️ Planned (D9) | Sprint 2 | Core feature |
+
+---
+
+### 📊 Legacy Coverage Summary
+
+| Category | Total Features | Covered | Partial | Removed | Not Covered | Coverage % |
+|----------|----------------|---------|---------|---------|-------------|------------|
+| Status Page | 8 | 0 | 4 | 0 | 4 | 50% |
+| Meter Review | 7 | 0 | 5 | 0 | 2 | 71% |
+| Load Manager | 5 | 0 | 3 | 1 | 1 | 60% |
+| City Data | 6 | 0 | 2 | 0 | 4 | 33% |
+| Reports | 3 | 0 | 0 | 1 | 2 | 0% |
+| Certified Reports | 4 | 0 | 0 | 0 | 4 | 0% |
+| History | 3 | 0 | 2 | 0 | 1 | 67% |
+| **TOTAL** | **36** | **0** | **16** | **3** | **17** | **44%** |
+
+**Notes:**
+- **Removed (3):** Reader-specific features excluded due to managers-only scope
+- **Partial (16):** Features planned in current sprint plan (Sprints 2-3)
+- **Not Covered (17):** Phase 2 features or low-priority backlog items
+- **Current POC Focus:** Core manager workflow (reading, review, assignment)
+
+---
+
 ## 🎯 Deliverables Summary
 
-| ID | Deliverable | Sprint | Status | Owner |
-|----|-------------|--------|--------|-------|
-| D1 | Authentication System | Sprint 1 | ✅ Complete | Dev |
-| D2 | Dashboard - Routes Tab | Sprint 1 | ✅ Complete | Dev |
-| D3 | Meter Review (Photos Tab) | Sprint 1 | ⚠️ Partial | Dev |
-| D4 | Meter Reading Form | Sprint 1 | ⚠️ Partial | Dev |
-| D5 | Database Schema + Mock Data | Sprint 1 | ✅ Complete | Dev |
-| D6 | Reading Submission (DB) | Sprint 2 | ❌ Not Started | Dev |
-| D7 | Photo Upload Integration | Sprint 2 | ❌ Not Started | Dev |
-| D8 | Route Self-Assignment | Sprint 2 | ❌ Not Started | Dev |
-| D9 | Reading History Display | Sprint 2 | ❌ Not Started | Dev |
-| D10 | Offline Sync Framework | Sprint 3 | ❌ Not Started | Dev |
-| D11 | Photo Review Workflow | Sprint 2 | ❌ Not Started | Dev |
-| D12 | ~~Reader Management CRUD~~ | N/A | ⛔ Removed | Dev |
-| D13 | Meter Lookup (Search) | Sprint 2 | ❌ Not Started | Dev |
-| D14 | Notes/Comments on Readings | Sprint 2 | ❌ Not Started | Dev |
-| D15 | Usage Comparison Display | Sprint 3 | ❌ Not Started | Dev |
-| D16 | Enhanced Photo Review (Side-by-Side) | Sprint 3 | ❌ Not Started | Dev |
-| D17 | GPS Verification Display (Map) | Sprint 3 | ❌ Not Started | Dev |
-| D18 | Export Readings (CSV) | Sprint 3 | ❌ Not Started | Dev |
+| ID | Deliverable | Sprint | Status | Owner | Priority |
+|----|-------------|--------|--------|-------|----------|
+| D1 | Authentication System | Sprint 1 | ✅ Complete | Dev | ✅ Done |
+| D2 | Dashboard - Routes Tab | Sprint 1 | ✅ Complete | Dev | ✅ Done |
+| D3 | Meter Review (Photos Tab) | Sprint 1 | ⚠️ Partial | Dev | 🔄 In Progress |
+| D4 | ~~Meter Reading Form~~ | N/A | ⛔ **Removed** | Dev | N/A |
+| D5 | Database Schema + Mock Data | Sprint 1 | ✅ Complete | Dev | ✅ Done |
+| D6 | ~~Reading Submission (DB)~~ | N/A | ⛔ **Removed** | Dev | N/A |
+| D7 | ~~Photo Upload Integration~~ | N/A | ⛔ **Removed** | Dev | N/A |
+| D8 | Route Assignment (Manager → Reader) | Sprint 2 | ❌ Not Started | Dev | 🔴 **Critical** |
+| D9 | Reading History Display | Sprint 2 | ❌ Not Started | Dev | 🟠 High |
+| D10 | Offline Sync Framework | Sprint 3 | ❌ Not Started | Dev | 🟠 High |
+| D11 | Photo Review Workflow (Approve/Reject) | Sprint 2 | ❌ Not Started | Dev | 🔴 **Critical** |
+| D12 | Reader Management (CRUD) | Sprint 2 | ❌ Not Started | Dev | 🔴 **Critical** |
+| D13 | Meter Lookup (Search) | Sprint 2 | ❌ Not Started | Dev | 🟠 High |
+| D14 | Notes/Comments on Readings | Sprint 2 | ❌ Not Started | Dev | 🟢 Medium |
+| D15 | Usage Comparison Display | Sprint 3 | ❌ Not Started | Dev | 🟢 Medium |
+| D16 | Enhanced Photo Review (Side-by-Side) | Sprint 3 | ❌ Not Started | Dev | 🟢 Medium |
+| D17 | GPS Verification Display (Map) | Sprint 3 | ❌ Not Started | Dev | 🟢 Medium |
+| D18 | Export Readings (CSV) | Sprint 3 | ❌ Not Started | Dev | 🟠 High |
+| D19 | Cycle/Status Management | Sprint 2 | ❌ Not Started | Dev | 🔴 **Critical** |
+
+---
+
+## 📋 Requirements & Features
+
+*Project-wide objectives organized by functional area. Each feature maps to legacy requirements and sprint deliverables.*
+
+### R1: Route & Reader Management (Load Manager)
+
+| ID | Feature | Priority | Status | Deliverables | Legacy Mapping |
+|----|---------|----------|--------|--------------|----------------|
+| R1-01 | **Reader CRUD** - Create, read, update, deactivate readers | 🔴 Critical | ❌ Not Started | D12 | L3-03 |
+| R1-02 | **Route Assignment** - Assign routes to readers | 🔴 Critical | ❌ Not Started | D8 | L3-01, L3-04 |
+| R1-03 | **Assignment Tracking** - View who has which routes | 🔴 Critical | ⚠️ Partial | D2, D8 | L3-05 |
+| R1-04 | **Route Splitting** - Split route between multiple readers | 🟢 Low | ❌ Not Started | Backlog | L3-02 |
+| R1-05 | **Reader Contact Info** - Store phone/email for readers | 🟠 High | ❌ Not Started | D12 | L3-03 |
+
+### R2: Reading Review & Approval (Meter Review)
+
+| ID | Feature | Priority | Status | Deliverables | Legacy Mapping |
+|----|---------|----------|--------|--------------|----------------|
+| R2-01 | **Review Queue** - List of pending readings from readers | 🔴 Critical | ⚠️ Partial | D3, D11 | L2-07 |
+| R2-02 | **Approve Reading** - Accept submitted reading | 🔴 Critical | ❌ Not Started | D11 | L2-01 |
+| R2-03 | **Reject/Reread** - Send back to reader for re-visit | 🔴 Critical | ❌ Not Started | D11 | L2-02 |
+| R2-04 | **Photo Display** - View reader's submitted photo | 🔴 Critical | ⚠️ Partial | D3, D11 | L2-03 |
+| R2-05 | **Photo vs. Read Comparison** - Side-by-side view | 🟠 High | ❌ Not Started | D16 | L2-03 |
+| R2-06 | **GPS Verification** - Compare GPS to meter address | 🟠 High | ❌ Not Started | D17 | L2-04 |
+| R2-07 | **Reader Notes Display** - Show notes from reader | 🟠 High | ❌ Not Started | D14 | L2-05 |
+| R2-08 | **Manager Notes** - Add internal notes to reading | 🟢 Medium | ❌ Not Started | D14 | L2-05 |
+| R2-09 | **Usage History** - Show historical usage during review | 🟢 Medium | ❌ Not Started | D15 | L2-06 |
+
+### R3: Dashboard & Status (Status Page)
+
+| ID | Feature | Priority | Status | Deliverables | Legacy Mapping |
+|----|---------|----------|--------|--------------|----------------|
+| R3-01 | **Cycle Status Display** - Show current cycle & status | 🔴 Critical | ❌ Not Started | D19 | L1-01 |
+| R3-02 | **Cycle Selection** - Switch between cycles | 🟠 High | ❌ Not Started | D19 | L1-01, L7-01 |
+| R3-03 | **Progress Tracking** - Readings complete / total meters | 🟠 High | ❌ Not Started | D19 | L1-01 |
+| R3-04 | **Route Listing** - Routes grouped by zip/area | ✅ Done | ✅ Complete | D2 | L1-01 |
+| R3-05 | **Meter Lookup** - Search by ID/address/account | 🟠 High | ❌ Not Started | D13 | L1-04, L1-05, L1-06 |
+| R3-06 | **Quick Reference Guides** - Downloadable PDFs | 🟢 Low | ❌ Not Started | Backlog | L1-07 |
+| R3-07 | **Contact Info Display** - Sales/support contacts | 🟢 Low | ❌ Not Started | Backlog | L1-08 |
+
+### R4: History & Reporting
+
+| ID | Feature | Priority | Status | Deliverables | Legacy Mapping |
+|----|---------|----------|--------|--------------|----------------|
+| R4-01 | **Reading History** - View historical readings | 🟠 High | ❌ Not Started | D9 | L7-03 |
+| R4-02 | **Filter by Cycle/Date** - Select date range or cycle | 🟠 High | ❌ Not Started | D9, D19 | L7-01 |
+| R4-03 | **Export to CSV** - Download readings data | 🟠 High | ❌ Not Started | D18 | L1-02, L4-05 |
+| R4-04 | **General Reports** - Informational dashboards | 🟢 Medium | ❌ Not Started | D21 (proposed) | L5-01 |
+| R4-05 | **Exception Reports** - Negative/zero/high/low reads | 🟢 Medium | ❌ Not Started | D20 (proposed) | L6-01 |
+| R4-06 | **Reader Performance** - Stats per reader | 🟢 Low | ❌ Not Started | Backlog | L5-03 (removed) |
+
+### R5: City Data & Cycle Management (Admin)
+
+| ID | Feature | Priority | Status | Deliverables | Legacy Mapping |
+|----|---------|----------|--------|--------------|----------------|
+| R5-01 | **Upload Cycle File** - Import city cycle data | 🟢 Low | ❌ Not Started | Phase 2 | L4-02 |
+| R5-02 | **Upload Customer File** - Import customer data | 🟢 Low | ❌ Not Started | Phase 2 | L4-03 |
+| R5-03 | **Upload Results** - Show import validation | 🟢 Low | ❌ Not Started | Phase 2 | L4-04 |
+| R5-04 | **Cycle Status Workflow** - Pending → Active → Complete | 🟢 Low | ❌ Not Started | Phase 2 | L4-01 |
+| R5-05 | **Download City Reads** - Export for city submission | 🟠 High | ❌ Not Started | D18 | L4-05 |
+
+### R6: Certified Reports (Phase 2)
+
+| ID | Feature | Priority | Status | Deliverables | Legacy Mapping |
+|----|---------|----------|--------|--------------|----------------|
+| R6-01 | **Certified Exceptions** - Approved exception reports | 🟢 Low | ❌ Not Started | Phase 2 | L6-01 |
+| R6-02 | **City Certified Reports** - City-validated meters | 🟢 Low | ❌ Not Started | Phase 2 | L6-02 |
+| R6-03 | **Certified Photo Data** - Photos for certified reads | 🟢 Low | ❌ Not Started | Phase 2 | L6-03 |
+| R6-04 | **Certificate Lookup** - Print meter certificates | 🟢 Low | ❌ Not Started | Phase 2 | L6-04 |
+
+### R7: Offline & Mobile (PWA Enhancements)
+
+| ID | Feature | Priority | Status | Deliverables | Legacy Mapping |
+|----|---------|----------|--------|--------------|----------------|
+| R7-01 | **Offline Browsing** - Cache UI for offline use | 🟠 High | ❌ Not Started | D10 | New (PWA) |
+| R7-02 | **Responsive Design** - Mobile-first layout | ✅ Done | ✅ Complete | D2, D3 | New (PWA) |
+| R7-03 | **Sync Status Indicator** - Show pending/pushed | 🟠 High | ❌ Not Started | D10 | New (PWA) |
+
+---
+
+## 🔍 Gap Analysis & Recommendations
+
+### Critical Gaps (High Priority Legacy Features Not Yet Covered)
+
+| Gap ID | Legacy Feature | Impact | Recommendation | Priority | Sprint |
+|--------|----------------|--------|----------------|----------|--------|
+| G1 | City Cycle Status Management | Managers cannot see which cycle is active | Add D19: Cycle/Status Management | 🔴 Critical | 2 |
+| G2 | Reader Management | Cannot assign routes without readers | Add D12: Reader CRUD | 🔴 Critical | 2 |
+| G3 | Exception Flagging System | No way to identify unusual reads | Add D20: Exception Detection | 🟠 High | 3 |
+| G4 | Analytics/Reporting Dashboard | No progress visibility | Add D21: Dashboard Analytics | 🟢 Medium | 3 |
+| G5 | GPS Map Visualization | Cannot verify location visually | Add D17: Map Display | 🟠 High | 3 |
+
+### Scope Decisions (Features Removed by Design)
+
+| Feature | Reason for Removal | Alternative |
+|---------|-------------------|-------------|
+| Manager Reading Submission | Managers review, not submit | Separate reader app/ workflow handles submissions |
+| Reader Performance Reports | Out of scope for POC | Can be added in Phase 2 |
+| Route Splitting | Advanced feature | Can be added in Phase 2 if needed |
+| Certificate Printing | Customer-facing feature | Phase 2 (Certified Reports) |
+
+### Recommendations for Sprint 2-3 Planning
+
+1. **Add D19: Cycle/Status Management** (Sprint 2)
+   - Display current cycle status
+   - Allow cycle selection/filtering
+   - Maps to: L1-01, L4-01, L7-01
+
+2. **Add D20: Exception Detection** (Sprint 3)
+   - Auto-flag negative, zero, high (>40% change), low readings
+   - Filter Photos tab by exception type
+   - Maps to: L2-01, L2-02, L6-01
+
+3. **Add D21: Dashboard Analytics** (Sprint 3)
+   - Completion percentage per route
+   - Exception count summary
+   - Recent activity feed
+   - Maps to: L5-01, L5-02
+
+4. **Enhance D18 (CSV Export)** (Sprint 3)
+   - Ensure export includes all fields needed for city submission
+   - Add "Download City Reads" format option
+   - Maps to: L1-02, L4-05
+
+### Updated Coverage After Recommendations
+
+If all recommendations are implemented:
+
+| Category | Current Coverage | After Sprint 2-3 | After Phase 2 |
+|----------|------------------|------------------|---------------|
+| Status Page | 50% | 75% | 100% |
+| Meter Review | 71% | 100% | 100% |
+| Load Manager | 60% | 80% | 100% |
+| City Data | 33% | 50% | 100% |
+| Reports | 0% | 33% | 100% |
+| Certified Reports | 0% | 0% | 100% |
+| History | 67% | 100% | 100% |
+| **TOTAL** | **44%** | **67%** | **100%** |
 
 ---
 
@@ -83,32 +340,26 @@ A Progressive Web App for **managers** to conduct meter reading operations with 
 
 - [x] **D3: Meter Review (Photos Tab)**
   - [x] Tab navigation
-  - [ ] Photo review queue UI (manager's own photos)
+  - [ ] Photo review queue UI (pending reader submissions)
   - [ ] Photo inspect modal
-  - [ ] Review/flag actions
+  - [ ] Approve/Reject actions
   - [ ] Side-by-side photo vs. read comparison
   - [ ] GPS verification (map overlay)
+  - [ ] Display reader name + notes
   - **Status:** ⚠️ Placeholder only
 
-- [x] **D4: Meter Reading Form**
-  - [x] GPS capture + accuracy display
-  - [x] Reading input with validation
-  - [x] Delta calculation (% change)
-  - [x] Recheck warning (>40%)
-  - [ ] Photo capture (actual camera)
-  - [ ] Submit to database
-  - [ ] Notes/comments field
-  - **Files:** `frontend/src/app/components/MeterReadingForm.tsx`
-  - **Status:** ⚠️ UI complete, backend pending
+- [x] **D4: ~~Meter Reading Form~~** ⛔ **REMOVED**
+  - **Note:** Reading submission is handled by separate reader workflow (not part of this portal)
+  - **Status:** ⛔ Removed from scope
 
 - [x] **D5: Database Schema + Mock Data**
   - [x] Supabase project setup
   - [x] PostGIS extension enabled
   - [x] Schema deployed (users, meters, readings)
   - [x] RLS policies configured
-  - [x] Mock data generator (100 meters, 1,500 readings)
+  - [ ] Mock data generator (needs reader submissions, not manager)
   - **Files:** `migrations/001_initial_schema.sql`, `scripts/generate-mock-data.js`
-  - **Status:** ✅ Complete
+  - **Status:** ⚠️ Needs update for reader workflow
 
 #### Sprint 1 Retrospective
 
@@ -116,114 +367,160 @@ A Progressive Web App for **managers** to conduct meter reading operations with 
 - Fast scaffold with Next.js + Tailwind
 - Mockup design migrated successfully
 - Database schema deployed without issues
-- Mock data generation working
+- Authentication working
 
-**Blockers:**
-- RLS needs to be re-enabled with proper user linking
-- Reading form submit is console.log only
+**What Needs Correction:**
+- Mock data assumes managers submit readings (should be reader submissions)
+- Photos tab shows manager's own photos (should show reader submissions)
+- Route assignment is self-assign (should be manager → reader)
+- Missing `readers` table for reader management
 
 **Carry to Sprint 2:**
-- Reading submission backend
-- Photo upload integration
-- Route assignment persistence
+- ~~Reading submission backend~~ (Removed - reader workflow is separate)
+- ~~Photo upload integration~~ (Removed - readers upload photos)
+- Route assignment persistence (now: Manager assigns to readers)
+- Reader Management CRUD (new critical requirement)
+- Cycle/Status display (new critical requirement)
 
 ---
 
 ### Sprint 2 - Core Workflow 🚧
 
 **Duration:** TBD  
-**Goal:** End-to-end reading workflow functional  
+**Goal:** Manager can assign routes to readers, review submitted readings, and approve/reject exceptions  
 **Status:** 🟡 **Not Started**
 
 #### Deliverables
 
-- [ ] **D6: Reading Submission (DB)**
-  - [ ] Supabase insert on form submit
-  - [ ] Update meter.last_reading_date
-  - [ ] Success/error toast feedback
-  - [ ] Redirect to dashboard on success
-  - **Estimated:** 2h
-  - **Dependencies:** D4 (Reading Form)
-  - **Status:** ❌ Not Started
-
-- [ ] **D7: Photo Upload Integration**
-  - [ ] Supabase Storage bucket setup
-  - [ ] Camera/file picker in form
-  - [ ] Upload progress indicator
-  - [ ] Store URL in readings.photo_url
-  - [ ] View uploaded photo in history
-  - **Estimated:** 4h
-  - **Dependencies:** D6
-  - **Status:** ❌ Not Started
-
-- [ ] **D8: Route Self-Assignment**
-  - [ ] Create `route_assignments` table
-  - [ ] Save assignment to DB on modal submit (manager self-assigns)
-  - [ ] Load assignments on dashboard
+- [ ] **D8: Route Assignment (Manager → Reader)** 🔴 **CRITICAL**
+  - [ ] Create `readers` table (id, name, email, phone, active status)
+  - [ ] Create `route_assignments` table (route_id, reader_id, manager_id, status, dates)
+  - [ ] Reader selection dropdown in assignment modal
+  - [ ] Assign route to reader (manager selects reader + route)
   - [ ] Update route status (unassigned → assigned → in-progress → completed)
-  - [ ] Remove reader selection UI
-  - **Estimated:** 2h
-  - **Dependencies:** D2
+  - [ ] Display reader name on route cards in dashboard
+  - [ ] Auto-save assignments
+  - **Estimated:** 4h
+  - **Dependencies:** D2 (Dashboard UI exists)
+  - **Legacy Mapping:** L3-01, L3-03, L3-04, L3-05
   - **Status:** ❌ Not Started
 
-- [ ] **D9: Reading History Display**
-  - [ ] Query last 50 readings per route/meter
-  - [ ] Table view on dashboard
-  - [ ] Reading detail modal
-  - [ ] Filter by date range
-  - [ ] Export to CSV option
-  - **Estimated:** 2h
-  - **Dependencies:** D6
+- [ ] **D12: Reader Management (CRUD)** 🔴 **CRITICAL**
+  - [ ] Readers list page (table view with search/filter)
+  - [ ] Add new reader (name, email, phone, active status)
+  - [ ] Edit reader details
+  - [ ] Deactivate reader (soft delete)
+  - [ ] View reader assignment history
+  - [ ] Reader detail modal/page
+  - **Estimated:** 6h
+  - **Dependencies:** D8 (uses readers table)
+  - **Legacy Mapping:** L3-03 (Reader Selection List prerequisite)
   - **Status:** ❌ Not Started
 
-- [ ] **D11: Photo Review Workflow**
-  - [ ] Photo review queue (grid view, manager's own photos)
+- [ ] **D11: Photo Review Workflow (Approve/Reject)** 🔴 **CRITICAL**
+  - [ ] Photo review queue (grid view of submitted readings pending review)
+  - [ ] Filter by route, reader, date, exception type
   - [ ] Photo zoom/inspect modal
-  - [ ] Flag for re-visit / mark as verified
-  - [ ] Filter by date/route
-  - [ ] OCR integration (future)
-  - **Estimated:** 5h
-  - **Dependencies:** D7
+  - [ ] **Approve** action (accepts reading, moves to certified)
+  - [ ] **Reject/Reread** action (sends back to reader for re-visit)
+  - [ ] Display reading value + photo side-by-side (basic)
+  - [ ] Display GPS coordinates vs. meter address
+  - [ ] Display reader notes/comments
+  - [ ] Update reading status (pending → approved/rejected)
+  - **Estimated:** 8h
+  - **Dependencies:** D8 (readers table), D12 (reader context)
+  - **Legacy Mapping:** L2-01, L2-02, L2-05, L2-07
   - **Status:** ❌ Not Started
 
-- [ ] **D13: Meter Lookup (Search)**
+- [ ] **D19: Cycle/Status Management** 🔴 **CRITICAL**
+  - [ ] Display current city/cycle status on dashboard header
+  - [ ] Cycle selector (if multiple cycles exist)
+  - [ ] Show cycle progress (readings complete / total meters)
+  - [ ] Show status badge (Read Pending / Active / Ready to Download / Complete)
+  - [ ] Filter dashboard data by selected cycle
+  - **Estimated:** 3h
+  - **Dependencies:** D2 (dashboard integration)
+  - **Legacy Mapping:** L1-01, L7-01
+  - **Status:** ❌ Not Started
+
+- [ ] **D9: Reading History Display** 🟠 **HIGH**
+  - [ ] Query readings by route/meter/reader
+  - [ ] Table view on dashboard (History tab or modal)
+  - [ ] Reading detail modal (shows value, photo, GPS, notes, reader)
+  - [ ] Filter by date range, route, reader
+  - [ ] Sort by date, meter, status
+  - [ ] Export to CSV option (basic)
+  - **Estimated:** 4h
+  - **Dependencies:** D8, D11 (reading status workflow)
+  - **Legacy Mapping:** L7-03
+  - **Status:** ❌ Not Started
+
+- [ ] **D13: Meter Lookup (Search)** 🟠 **HIGH**
   - [ ] Search by meter ID
   - [ ] Search by address
-  - [ ] Search by account number
-  - [ ] Quick access from header
-  - [ ] Display meter details + recent readings
-  - **Estimated:** 3h
-  - **Dependencies:** D9
+  - [ ] Search by account number (if field exists)
+  - [ ] Quick access from header (search bar)
+  - [ ] Display meter details (location, route, last reading)
+  - [ ] Show recent reading history for meter
+  - **Estimated:** 4h
+  - **Dependencies:** D9 (history display)
+  - **Legacy Mapping:** L1-04, L1-05, L1-06
   - **Status:** ❌ Not Started
 
-- [ ] **D14: Notes/Comments on Readings**
-  - [ ] Add notes field to readings table
-  - [ ] Text input in reading form
-  - [ ] Display notes in history/review
-  - [ ] Edit notes after submission
+- [ ] **D14: Notes/Comments on Readings** 🟢 **MEDIUM**
+  - [ ] Add notes field to readings table (reader submits notes)
+  - [ ] Display notes in photo review workflow
+  - [ ] Display notes in history view
+  - [ ] Manager can add internal notes (separate field)
+  - [ ] Edit manager notes after submission
   - **Estimated:** 2h
-  - **Dependencies:** D6
+  - **Dependencies:** D11 (review workflow)
+  - **Legacy Mapping:** L2-05
   - **Status:** ❌ Not Started
 
 #### Sprint 2 Acceptance Criteria
 
-- [ ] Can submit a reading and see it in database
-- [ ] Can upload a photo with reading
-- [ ] Can self-assign a route and see it persist
-- [ ] Can view reading history per route
-- [ ] Can review own photos in Photos tab
-- [ ] Can search meters by ID/address/account
-- [ ] Can add notes to readings
+- [ ] Can create/edit/deactivate readers (D12)
+- [ ] Can assign routes to readers and see assignments persist (D8)
+- [ ] Dashboard shows reader names on route cards (D8)
+- [ ] Can view cycle status and progress on dashboard (D19)
+- [ ] Can review submitted readings in Photos tab (D11)
+- [ ] Can approve or reject readings (D11)
+- [ ] Rejected readings are marked for re-visit (D11)
+- [ ] Can view reading history with reader info (D9)
+- [ ] Can search meters by ID/address (D13)
+- [ ] Can view reader notes on readings (D14)
 - [ ] RLS re-enabled with proper user linking
 
 #### Known Blockers
 
-| Blocker | Impact | Resolution |
-|---------|--------|------------|
-| RLS disabled for testing | Medium | Link mock data to auth users, then re-enable |
-| No Supabase Storage bucket | Low | Create bucket in dashboard |
-| Mock data assumes readers table | Low | Remove reader references, use users table only |
-| Schema needs notes column | Low | Add migration for readings.notes |
+| ID | Blocker | Impact | Resolution | Status | Notes |
+|----|---------|--------|------------|--------|-------|
+| B1 | RLS disabled (mock data not linked to auth users) | High | Update mock data to link to auth users, then re-enable RLS | ⏳ Pending | Still needs RLS re-enable |
+| B2 | No `readers` table schema | High | Create migration for readers table | ✅ **Resolved** | Migration 003 complete |
+| B3 | Reading status workflow not defined | Medium | Define status enum: pending → approved/rejected → certified | ✅ **Resolved** | Added to migration 003 |
+| B4 | Mock data assumes managers submit readings | Medium | Seed reader submissions instead | ✅ **Resolved** | Mock generator updated |
+| B5 | Schema missing notes column | Low | Add migration: `ALTER TABLE readings ADD COLUMN notes TEXT` | ✅ **Resolved** | Included in migration 003 |
+| B6 | No cycle/city status tracking | Medium | Add `cities` and `cycles` tables | ✅ **Resolved** | Included in migration 003 |
+
+#### Blocker Resolution Summary (2026-04-05)
+
+✅ **B2, B3, B5, B6** - Resolved via `migrations/003_complete_schema.sql`
+✅ **B4** - Resolved via updated `scripts/generate-mock-data.js`
+⏳ **B1** - RLS still disabled for development; will re-enable after frontend workflow complete
+
+#### Schema Updates (2026-04-05)
+
+✅ **Migration 004:** `migrations/004_route_assignment_progress.sql`
+- Added `meters_total` column to `route_assignments`
+- Added `meters_read` column to `route_assignments`
+- Added `meters_pending` column to `route_assignments`
+- Created trigger `trg_update_assignment_progress` for auto-updating counters
+- Populated existing assignments with initial values
+
+**Purpose:** Enable real-time route progress tracking for managers (L3-05, D19)
+
+**Next Action:** Re-enable RLS policies once Sprint 2 frontend is complete and tested.
 
 ---
 

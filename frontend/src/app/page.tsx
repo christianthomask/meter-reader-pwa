@@ -8,6 +8,7 @@ import { MeterReadingForm } from './components/MeterReadingForm'
 import { ReadingHistory } from './components/ReadingHistory'
 import { PhotoReview } from './components/PhotoReview'
 import { MeterLookup } from './components/MeterLookup'
+import { AssignRouteModal } from './components/AssignRouteModal'
 
 interface Route {
   id: string
@@ -23,14 +24,26 @@ interface Route {
 
 interface RouteAssignment {
   id: string
-  user_id: string
+  route_id: string
+  reader_id: string
+  manager_id: string
   route_area: string
   assigned_at: string
-  status: 'assigned' | 'in-progress' | 'completed'
+  status: 'assigned' | 'in-progress' | 'completed' | 'cancelled'
   started_at?: string
   completed_at?: string
   meters_total: number
   meters_read: number
+  notes?: string
+}
+
+interface Reader {
+  id: string
+  full_name: string
+  email: string
+  phone: string | null
+  active: boolean
+  assigned_routes_count: number
 }
 
 type Tab = 'routes' | 'photos'
@@ -49,8 +62,8 @@ export default function Dashboard() {
   const [showHistoryModal, setShowHistoryModal] = useState(false)
   const [selectedRouteArea, setSelectedRouteArea] = useState<string | null>(null)
   const [showMeterLookup, setShowMeterLookup] = useState(false)
-  const [crewMembers, setCrewMembers] = useState<any[]>([])
-  const [selectedCrewMember, setSelectedCrewMember] = useState<string>('')
+  const [readers, setReaders] = useState<Reader[]>([])
+  const [selectedReaderId, setSelectedReaderId] = useState<string>('')
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -60,7 +73,7 @@ export default function Dashboard() {
         setUser(session.user)
         loadRoutes()
         loadAssignments()
-        loadCrewMembers()
+        loadReaders()
         checkPendingSync()
       }
       setLoading(false)
@@ -97,35 +110,44 @@ export default function Dashboard() {
     }
   }
 
-  async function loadCrewMembers() {
+  async function loadReaders() {
+    if (!user) return
+    
     const { data, error } = await supabase
-      .from('users')
-      .select('id, email, full_name')
+      .from('readers')
+      .select('id, full_name, email, phone, active, assigned_routes_count')
+      .eq('manager_id', user.id)
       .order('full_name')
     
     if (data) {
-      setCrewMembers(data)
+      setReaders(data)
     }
   }
 
   async function loadAssignments() {
     if (!user) return
     
+    // Load assignments with reader info
     const { data, error } = await supabase
       .from('route_assignments')
-      .select('*')
-      .eq('user_id', user.id)
+      .select(`
+        *,
+        readers (full_name, email)
+      `)
+      .eq('manager_id', user.id)
     
     if (data) {
       setAssignments(data)
       
+      // Update routes with assignment info
       setRoutes(prev => prev.map(route => {
-        const assignment = data.find(a => a.route_area === route.area)
+        const assignment = data.find((a: any) => a.route_id === route.id)
         if (assignment) {
+          const readerName = (assignment as any).readers?.full_name || 'Unknown'
           return {
             ...route,
-            assigned_to: 'You',
-            status: assignment.status,
+            assigned_to: readerName,
+            status: assignment.status as Route['status'],
             meters_read: assignment.meters_read
           }
         }
@@ -145,47 +167,7 @@ export default function Dashboard() {
     setLastSync(new Date())
   }
 
-  async function handleAssignToCrew() {
-    if (!selectedRouteId || !selectedCrewMember) return
-    
-    try {
-      const route = routes.find(r => r.id === selectedRouteId)
-      if (!route) return
-      
-      const crewMember = crewMembers.find(m => m.id === selectedCrewMember)
-      if (!crewMember) return
-      
-      const { error } = await supabase
-        .from('route_assignments')
-        .upsert({
-          user_id: crewMember.id,
-          route_area: route.area,
-          status: 'assigned',
-          meters_total: route.meter_count,
-          meters_read: 0
-        })
-      
-      if (error) throw error
-      
-      setRoutes(prev =>
-        prev.map(r =>
-          r.id === selectedRouteId
-            ? { ...r, assigned_to: crewMember.full_name || crewMember.email, status: 'assigned' }
-            : r
-        )
-      )
-      
-      await loadAssignments()
-      
-      setShowAssignModal(false)
-      setSelectedRouteId(null)
-      setSelectedCrewMember('')
-    } catch (err: any) {
-      console.error('Assignment error:', err)
-    }
-  }
-
-  async function updateAssignmentStatus(area: string, status: RouteAssignment['status']) {
+  async function updateAssignmentStatus(routeId: string, status: RouteAssignment['status']) {
     if (!user) return
     
     const { error } = await supabase
@@ -195,8 +177,8 @@ export default function Dashboard() {
         started_at: status === 'in-progress' ? new Date().toISOString() : undefined,
         completed_at: status === 'completed' ? new Date().toISOString() : undefined
       })
-      .eq('user_id', user.id)
-      .eq('route_area', area)
+      .eq('manager_id', user.id)
+      .eq('route_id', routeId)
     
     if (!error) {
       await loadAssignments()
@@ -342,19 +324,27 @@ export default function Dashboard() {
                     <span className="text-gray-600">{route.meter_count} meters</span>
                   </div>
 
-                  {route.status === 'in-progress' && route.meters_read !== undefined && (
-                    <div className="mb-3 space-y-2">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-gray-600">Progress</span>
-                        <span className="font-medium text-gray-900">
-                          {route.meters_read} / {route.meter_count} read
-                        </span>
+                  {/* Progress Bar - Bonus Feature for HANDOFF-05 */}
+                  {route.assigned_to && route.status !== 'completed' && (
+                    <div className="mb-3 space-y-1">
+                      <div className="flex justify-between text-xs text-gray-600">
+                        <span>Progress</span>
+                        <span>{route.meters_read || 0} / {route.meter_count} meters</span>
                       </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
                         <div
-                          className="bg-blue-600 h-2 rounded-full transition-all"
-                          style={{ width: `${(route.meters_read / route.meter_count) * 100}%` }}
+                          className={`h-2 rounded-full transition-all ${
+                            (route.meters_read || 0) >= route.meter_count 
+                              ? 'bg-green-500' 
+                              : (route.meters_read || 0) > route.meter_count / 2
+                                ? 'bg-blue-500'
+                                : 'bg-yellow-500'
+                          }`}
+                          style={{ width: `${Math.min(((route.meters_read || 0) / route.meter_count) * 100, 100)}%` }}
                         />
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        {Math.round(((route.meters_read || 0) / route.meter_count) * 100)}% complete
                       </div>
                     </div>
                   )}
@@ -365,20 +355,20 @@ export default function Dashboard() {
                         <User size={16} className="text-blue-600" />
                         <span className="text-gray-700">Assigned to: <span className="font-medium">{route.assigned_to}</span></span>
                       </div>
-                      {route.assigned_to === 'You' && (
-                        <div className="flex gap-2">
+                      {route.assigned_to && (
+                        <div className="space-y-2">
                           {route.status === 'assigned' && (
                             <button
-                              onClick={() => updateAssignmentStatus(route.area, 'in-progress')}
-                              className="flex-1 text-xs px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                              onClick={() => updateAssignmentStatus(route.id, 'in-progress')}
+                              className="w-full text-xs px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
                             >
                               Start Reading
                             </button>
                           )}
                           {route.status === 'in-progress' && (
                             <button
-                              onClick={() => updateAssignmentStatus(route.area, 'completed')}
-                              className="flex-1 text-xs px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
+                              onClick={() => updateAssignmentStatus(route.id, 'completed')}
+                              className="w-full text-xs px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
                             >
                               Complete
                             </button>
@@ -422,54 +412,20 @@ export default function Dashboard() {
         )}
       </main>
 
-      {/* Assignment Modal - Self Assign */}
-      {showAssignModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-end sm:items-center justify-center z-50">
-          <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md max-h-[80vh] overflow-auto">
-            <div className="p-4 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900">Assign Route to Crew Member</h3>
-              <p className="text-sm text-gray-600 mt-1">Select a crew member to assign this route</p>
-            </div>
-            <div className="p-4 space-y-3">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Crew Member</label>
-                <select
-                  value={selectedCrewMember}
-                  onChange={(e) => setSelectedCrewMember(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="">Select a crew member...</option>
-                  {crewMembers.map(member => (
-                    <option key={member.id} value={member.id}>
-                      {member.full_name || member.email}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <button
-                onClick={handleAssignToCrew}
-                disabled={!selectedCrewMember}
-                className="w-full p-4 rounded-lg border text-left transition-colors border-blue-600 bg-blue-50 hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="font-medium text-blue-900">Assign Route</span>
-                  <UserPlus size={20} className="text-blue-600" />
-                </div>
-              </button>
-            </div>
-            <div className="p-4 border-t border-gray-200">
-              <button
-                onClick={() => {
-                  setShowAssignModal(false)
-                  setSelectedRouteId(null)
-                }}
-                className="w-full py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
+      {/* Assignment Modal - Assign to Reader */}
+      {showAssignModal && selectedRouteId && (
+        <AssignRouteModal
+          route={routes.find(r => r.id === selectedRouteId) || null}
+          managerId={user?.id || ''}
+          onClose={(refresh) => {
+            if (refresh) {
+              loadAssignments()
+              loadReaders()
+            }
+            setShowAssignModal(false)
+            setSelectedRouteId(null)
+          }}
+        />
       )}
 
       {/* Reading History Modal */}

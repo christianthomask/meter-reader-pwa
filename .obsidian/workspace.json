@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "SUPABASE-STORAGE-SETUP.md",
+                "file": "PROJECT-TRACKER.md",
                 "mode": "preview",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "SUPABASE-STORAGE-SETUP"
+              "title": "PROJECT-TRACKER"
             }
           }
         ]
@@ -185,12 +185,12 @@
   },
   "active": "f69be156218af51f",
   "lastOpenFiles": [
+    "SUPABASE-STORAGE-SETUP.md",
     "frontend/src/app/components/MeterLookup.tsx",
     "frontend/src/app/components/PhotoReview.tsx",
     "frontend/src/app/components/ReadingHistory.tsx",
     "RLS-SETUP-GUIDE.md",
     "migrations/003_add_route_assignments.sql",
-    "SUPABASE-STORAGE-SETUP.md",
     "MIGRATION-GUIDE.md",
     "scripts/generate-mock-data-linked.js",
     "scripts/link-mock-data-to-auth.sql",

@@ -33,21 +33,15 @@ const CONFIG = {
   // Warn if using anon key
   isServiceKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
   
-  // Data generation settings
-  numManagers: 2,
-  numReadersPerManager: 5,  // Total: 10 readers
-  numMetersPerManager: 50,  // Total: 100 meters
-  numReadingsPerMeter: 15,  // Total: 1500+ readings
-  daysOfHistory: 365,
-  
   // Manager credentials (for auth.users creation)
   managerPassword: 'Demo123!@#',  // Default password for all mock managers
   
   // Data generation settings
   numManagers: 2,
-  numReadersPerManager: 5,  // Total: 10 readers
-  numMetersPerManager: 50,  // Total: 100 meters
-  numReadingsPerMeter: 15,  // Total: 1500+ readings
+  numReadersPerManager: 5,      // Total: 10 readers
+  numRoutesPerManager: 10,      // Total: 20 routes (realistic: 10-15 per manager)
+  numMetersPerRoute: 15,        // 15 meters per route (realistic: 10-200)
+  numReadingsPerMeter: 12,      // Total: ~3600 readings (2 managers × 10 routes × 15 meters × 12 readings)
   daysOfHistory: 365,
   
   // Geographic center (Los Angeles)
@@ -55,28 +49,20 @@ const CONFIG = {
   centerLon: -118.2437,
   locationRadiusKm: 50,  // Spread meters within 50km
   
-  // Meter type distribution
+  // Meter type distribution - Alexander's only measures WATER meters
   meterTypes: {
-    water: 0.35,
-    electric: 0.35,
-    gas: 0.20,
-    solar: 0.10
+    water: 1.0  // 100% water meters
   },
   
   // Units by meter type
   units: {
-    water: 'gallons',
-    electric: 'kWh',
-    gas: 'therms',
-    solar: 'kWh'
+    water: 'gallons'
   },
   
   // Typical reading ranges by meter type (per reading period)
+  // Water meters: residential use 500-5000 gallons per reading period
   readingRanges: {
-    water: { min: 500, max: 5000 },
-    electric: { min: 100, max: 2000 },
-    gas: { min: 10, max: 200 },
-    solar: { min: 0, max: 1500 }  // Solar can be 0 at night
+    water: { min: 500, max: 5000 }
   },
   
   // Reading status distribution
@@ -317,9 +303,9 @@ function generateMockReading(meterId, meterType, previousValue, readerId) {
     }[exceptionType];
   }
   
-  // Generate reader notes
-  const readerNoteTemplates = [
-    null,  // 50% chance of no notes
+  // Water-specific notes (since Alexander's only does water meters)
+  const waterNotes = [
+    null,  // 30% chance of no notes
     'Meter was easily accessible',
     'Dog on property - be careful',
     'Meter box was locked, had to wait for customer',
@@ -327,9 +313,12 @@ function generateMockReading(meterId, meterType, previousValue, readerId) {
     'GPS signal weak, accuracy may vary',
     'Customer reported possible leak',
     'Meter reading confirmed with customer',
-    'Difficult access - overgrown vegetation'
+    'Difficult access - overgrown vegetation',
+    'Water meter in front yard',
+    'Meter box had water in it',
+    'Lid stuck, required tool to open'
   ];
-  const readerNotes = readerNoteTemplates[randomInt(0, readerNoteTemplates.length - 1)];
+  const readerNotes = waterNotes[randomInt(0, waterNotes.length - 1)];
   
   // Calculate value and delta consistently (constraint requires: delta = value - previous)
   let value, previous_value, delta_value;
@@ -387,8 +376,9 @@ async function generateMockData() {
   console.log(`📊 Generating:`);
   console.log(`   - ${CONFIG.numManagers} managers`);
   console.log(`   - ${CONFIG.numManagers * CONFIG.numReadersPerManager} readers`);
-  console.log(`   - ~${CONFIG.numManagers * CONFIG.numMetersPerManager} meters`);
-  console.log(`   - ~${CONFIG.numManagers * CONFIG.numMetersPerManager * CONFIG.numReadingsPerMeter} readings\n`);
+  console.log(`   - ${CONFIG.numManagers * CONFIG.numRoutesPerManager} routes (${CONFIG.numMetersPerRoute} meters/route)`);
+  console.log(`   - ${CONFIG.numManagers * CONFIG.numRoutesPerManager * CONFIG.numMetersPerRoute} total meters`);
+  console.log(`   - ~${CONFIG.numManagers * CONFIG.numRoutesPerManager * CONFIG.numMetersPerRoute * CONFIG.numReadingsPerMeter} readings\n`);
   
   const managers = [];
   const readers = [];
@@ -437,52 +427,73 @@ async function generateMockData() {
     }
   }
   
-  // Generate meters and readings
-  console.log('📊 Generating meters and readings...');
+  // Generate routes, meters, and readings
+  console.log('📊 Generating routes, meters, and readings...');
   let meterIdMap = {};
   let cumulativeValue = {};
+  
+  // Define realistic zip codes for routes
+  const zipCodes = ['90210', '90211', '90212', '90401', '90402', '90403', '90404', '90405', '90025', '90024'];
   
   for (const manager of managers) {
     // Get readers for this manager
     const managerReaders = readers.filter(r => r.manager_id === manager.id);
     
-    for (let i = 0; i < CONFIG.numMetersPerManager; i++) {
-      const meterType = randomChoice(CONFIG.meterTypes);
-      const meter = generateMockMeter(manager.id, meterType, i);
+    // Generate routes (each route = multiple meters in same zip code)
+    for (let routeIdx = 0; routeIdx < CONFIG.numRoutesPerManager; routeIdx++) {
+      const zipCode = zipCodes[routeIdx % zipCodes.length];  // Cycle through zip codes
+      const routeId = zipCode;  // Using zip_code as route identifier
       
-      // Initialize cumulative value for this meter
-      cumulativeValue[meter.id] = randomFloat(1000, 50000);
+      // Assign this route to a reader
+      const assignedReader = managerReaders[routeIdx % managerReaders.length];
       
-      meters.push(meter);
-      meterIdMap[meter.id] = { type: meterType };
-      
-      // Assign meter to a random reader (route assignment)
-      const assignedReader = managerReaders[randomInt(0, managerReaders.length - 1)];
+      // Create route assignment
       if (assignedReader) {
         routeAssignments.push({
           id: uuidv4(),
-          route_id: uuidv4(),  // Logical route ID
+          route_id: uuidv4(),  // Generate UUID for route_id
           reader_id: assignedReader.id,
           manager_id: manager.id,
           status: randomChoice({ assigned: 0.2, 'in-progress': 0.3, completed: 0.4, cancelled: 0.1 }),
           assigned_at: randomDate(60),
-          notes: null
+          meters_total: CONFIG.numMetersPerRoute,
+          meters_read: 0,
+          meters_pending: 0,
+          notes: `Route ${zipCode} assigned to ${assignedReader.full_name}`,
+          metadata: JSON.stringify({ zip_code: zipCode })  // Store zip in metadata
         });
       }
       
-      // Generate readings for this meter (submitted by various readers)
-      let meterCumulativeValue = cumulativeValue[meter.id];
-      for (let j = 0; j < CONFIG.numReadingsPerMeter; j++) {
-        // Pick a random reader from this manager's team
-        const readingReader = managerReaders[randomInt(0, managerReaders.length - 1)];
-        const reading = generateMockReading(
-          meter.id, 
-          meterType, 
-          meterCumulativeValue, 
-          readingReader.id
-        );
-        meterCumulativeValue = reading.value;
-        readings.push(reading);
+      // Generate meters for this route (all in same zip code)
+      for (let meterIdx = 0; meterIdx < CONFIG.numMetersPerRoute; meterIdx++) {
+        const meterType = randomChoice(CONFIG.meterTypes);
+        const meter = generateMockMeter(manager.id, meterType, routeIdx * CONFIG.numMetersPerRoute + meterIdx);
+        
+        // Override zip_code to match route
+        meter.zip_code = zipCode;
+        meter.address = `${randomInt(100, 9999)} ${['Main', 'Oak', 'Maple', 'Cedar', 'Pine', 'Elm', 'Park', 'Lake'][randomInt(0, 7)]} St`;
+        meter.city = ['Los Angeles', 'Santa Monica', 'Pasadena', 'Burbank', 'Long Beach'][randomInt(0, 4)];
+        
+        // Initialize cumulative value for this meter
+        cumulativeValue[meter.id] = randomFloat(1000, 50000);
+        
+        meters.push(meter);
+        meterIdMap[meter.id] = { type: meterType, route: zipCode };
+        
+        // Generate readings for this meter
+        let meterCumulativeValue = cumulativeValue[meter.id];
+        for (let j = 0; j < CONFIG.numReadingsPerMeter; j++) {
+          // Pick a random reader from this manager's team
+          const readingReader = managerReaders[randomInt(0, managerReaders.length - 1)];
+          const reading = generateMockReading(
+            meter.id, 
+            meterType, 
+            meterCumulativeValue, 
+            readingReader.id
+          );
+          meterCumulativeValue = reading.value;
+          readings.push(reading);
+        }
       }
     }
   }
@@ -558,11 +569,13 @@ async function generateMockData() {
   // Summary
   console.log('🎉 Mock data generation complete!\n');
   console.log('📊 Summary:');
-  console.log(`   Managers:  ${managers.length}`);
-  console.log(`   Readers:   ${readers.length}`);
-  console.log(`   Meters:    ${meters.length}`);
-  console.log(`   Route Assignments: ${routeAssignments.length}`);
-  console.log(`   Readings:  ${inserted}`);
+  console.log(`   Managers:           ${managers.length}`);
+  console.log(`   Readers:            ${readers.length}`);
+  console.log(`   Routes:             ${CONFIG.numManagers * CONFIG.numRoutesPerManager} (${CONFIG.numMetersPerRoute} meters each)`);
+  console.log(`   Total Meters:       ${meters.length}`);
+  console.log(`   Route Assignments:  ${routeAssignments.length}`);
+  console.log(`   Total Readings:     ${inserted}`);
+  console.log(`   Avg Readings/Meter: ${(inserted / meters.length).toFixed(1)}`);
   console.log('\n📈 Reading Status Distribution:');
   const statusCounts = {};
   readings.forEach(r => {
@@ -570,6 +583,14 @@ async function generateMockData() {
   });
   for (const [status, count] of Object.entries(statusCounts)) {
     console.log(`   ${status}: ${count} (${Math.round(count/readings.length * 100)}%)`);
+  }
+  console.log('\n📍 Route Distribution:');
+  const routeCounts = {};
+  meters.forEach(m => {
+    routeCounts[m.zip_code] = (routeCounts[m.zip_code] || 0) + 1;
+  });
+  for (const [zip, count] of Object.entries(routeCounts)) {
+    console.log(`   Route ${zip}: ${count} meters`);
   }
   console.log('\n🔍 Verify in Supabase Dashboard:');
   console.log(`   ${CONFIG.supabaseUrl.replace('.supabase.co', '')}.supabase.co/project/qjvexijvewosweznmgtg/editor\n`);

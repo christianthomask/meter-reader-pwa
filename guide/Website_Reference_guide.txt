@@ -1,0 +1,127 @@
+Website
+Reference Guide
+The main menu is divided into 6 main sections (seen below)
+This document will address these 6 sections in the order they appear.
+
+To begin, log into the site here.
+
+Login Page
+
+Home
+
+Status Page - Load Manager - City Data - Reports - Certified Reports - History
+
+1
+
+Status Page
+
+The city’s (or city cycle) information, status and Read downloads are posted
+in the left hand column.
+When a Cycle is Complete, the bottom box will contain link to allow the user
+to Prepare for a New Read Cycle and upload a new file.
+
+The top right section deals with Meter Read Management. (covered in the
+Meter Review Section) The Meter Lookup field allows a user to look up a
+meter based on ID, Address, or Account number.
+The bottom section contains any available Quick Reference Guides and
+Sales and Support Contact Info.
+
+2
+
+Meter Review
+
+The Meter Review page allows users to Approve or Reject meter exceptions
+based on the data collected. The user can compare:
+Read vs. Photo of read
+GPS vs. Actuall address location
+Along with reviewing Note, Comments, Usage, etc..
+
+If all the Meter Read Data matches, or is otherwise acceptable, the user
+simply clicks “Approve” and the meter exception is accepted and moves to
+the appropriate report.
+If the Read Data is unacceptable the Read can be Rejected by clicking
+“Reread”. This will mark this meter as a Recheck, to be reviewed in the field.
+3
+
+Load Manager
+
+The Load Manager allows a user to assign Routes to any available
+reader in the list.
+Load Manager also has the ability to “Split” routes temporarily.
+To split a route between multiple readers, simply select the reader, and check
+the “Split” box. Then select the next reader, and check the same split box.
+This route is now temporarily split between these two readers.
+
+Select the reader.
+Select the route.
+The readers and their assigned routes show up in the list.
+Loads are saved Automatically.
+
+Loads are saved Automatically.
+4
+
+City Data Page
+(Complete / Prepare New Cycle)
+
+Once the city status is “Complete” (or you are starting a new city), the city must be “Prepared for New Read Cycle”.
+Once the city is “Prepare for New Read Cycle”, the screen will display an file upload dialog. (see page 6)
+These options will also apear on the bottom left of the Status page.
+
+5
+
+City Data Page
+(Cycle in Read Pending Status)
+
+New file upload dialog.
+
+City Data Page
+(After Cycle file is uploaded)
+
+After uploading a new cycle file (or custfile), the results of the upload will look similar to the above.
+
+6
+
+City Data Page
+(Cycle in Active Status)
+
+When the city is in the Active Status, the Data screen will only allow the user access to the Load Manager.
+
+City Data Page
+(Cycle in Ready to Download status)
+
+Once the city reads are complete and the city status is “Ready for Download”,
+the Data screen will allow a download of the city reads.
+
+Do so by clicking “Download City Name Reads”.
+
+7
+
+Reports Page
+
+The Reports page has 3 areas:
+
+The General Reports (Informational)
+The Current Read Cycle Reports (Editable data)
+The Readers Reports (Containing information on Readers)
+
+8
+
+Certified Reports
+
+The Certified Reports page contains:
+
+The Certified Exceptions reports (Negative, Zero, Low, High, etc..)
+City Certified Reports (shows meters that were certified by the city)
+Certified Photo Data
+And a Certified Certificate Lookup. (this allows a user to print a certificate showing certified info
+about a specific meter)
+
+9
+
+History Page
+
+The History page allows a user to select a cycle and run reports on the meters within that cycle.
+
+10
+
+

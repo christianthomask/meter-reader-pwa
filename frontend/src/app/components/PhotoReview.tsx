@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
-import { X, ZoomIn, Flag, CheckCircle, Calendar, MapPin, Filter, Grid, List } from 'lucide-react'
+import { X, ZoomIn, Flag, CheckCircle, Calendar, MapPin, Filter, Grid, List, User } from 'lucide-react'
 
 interface PhotoReviewProps {
   onClose?: () => void
@@ -20,6 +20,7 @@ interface ReadingWithMeter {
   metadata?: {
     review_status?: 'pending' | 'verified' | 'flagged'
     reviewed_at?: string
+    uploaded_by?: string
     [key: string]: any
   }
   meters: {
@@ -30,6 +31,7 @@ interface ReadingWithMeter {
     meter_type: string
   } | null
   review_status?: 'pending' | 'verified' | 'flagged'
+  uploaded_by?: string
 }
 
 type ViewMode = 'grid' | 'list'
@@ -49,13 +51,16 @@ export function PhotoReview({ onClose }: PhotoReviewProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('grid')
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('all')
   const [selectedRoute, setSelectedRoute] = useState<string>('all')
+  const [selectedCrew, setSelectedCrew] = useState<string>('all')
   const [selectedPhoto, setSelectedPhoto] = useState<ReadingWithMeter | null>(null)
   const [routes, setRoutes] = useState<string[]>([])
+  const [crewMembers, setCrewMembers] = useState<{id: string, name: string}[]>([])
 
   useEffect(() => {
     loadPhotos()
     loadRoutes()
-  }, [filterStatus, selectedRoute])
+    loadCrewMembers()
+  }, [filterStatus, selectedRoute, selectedCrew])
 
   async function loadPhotos() {
     setLoading(true)
@@ -108,6 +113,20 @@ export function PhotoReview({ onClose }: PhotoReviewProps) {
     }
   }
 
+  async function loadCrewMembers() {
+    const { data, error } = await supabase
+      .from('users')
+      .select('id, email, full_name')
+      .order('full_name')
+    
+    if (data) {
+      setCrewMembers(data.map(m => ({
+        id: m.id,
+        name: m.full_name || m.email
+      })))
+    }
+  }
+
   async function updateReviewStatus(readingId: string, status: 'verified' | 'flagged') {
     const reading = readings.find(r => r.id === readingId)
     if (!reading) return
@@ -152,6 +171,10 @@ export function PhotoReview({ onClose }: PhotoReviewProps) {
       filtered = filtered.filter(r => r.meters?.zip_code === selectedRoute)
     }
     
+    if (selectedCrew !== 'all') {
+      filtered = filtered.filter(r => r.uploaded_by === selectedCrew || r.metadata?.uploaded_by === selectedCrew)
+    }
+    
     return filtered
   }
 
@@ -164,7 +187,7 @@ export function PhotoReview({ onClose }: PhotoReviewProps) {
         <div className="flex items-center justify-between mb-4">
           <div>
             <h2 className="text-lg font-semibold text-gray-900">Photo Review</h2>
-            <p className="text-sm text-gray-600">Review your submitted meter reading photos</p>
+            <p className="text-sm text-gray-600">Review submitted meter reading photos</p>
           </div>
           <div className="flex items-center gap-2">
             {/* View Mode Toggle */}
@@ -215,6 +238,20 @@ export function PhotoReview({ onClose }: PhotoReviewProps) {
               <option value="all">All Routes</option>
               {routes.map(route => (
                 <option key={route} value={route}>{route}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <User size={16} className="text-gray-500" />
+            <select
+              value={selectedCrew}
+              onChange={(e) => setSelectedCrew(e.target.value)}
+              className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="all">All Crew</option>
+              {crewMembers.map(crew => (
+                <option key={crew.id} value={crew.id}>{crew.name}</option>
               ))}
             </select>
           </div>

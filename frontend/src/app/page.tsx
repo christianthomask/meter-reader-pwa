@@ -43,13 +43,14 @@ export default function Dashboard() {
   const [activeTab, setActiveTab] = useState<Tab>('routes')
   const [showAssignModal, setShowAssignModal] = useState(false)
   const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null)
-  const [showReadingForm, setShowReadingForm] = useState(false)
   const [pendingReadings, setPendingReadings] = useState(0)
   const [lastSync, setLastSync] = useState<Date>(new Date())
   const [assignments, setAssignments] = useState<RouteAssignment[]>([])
   const [showHistoryModal, setShowHistoryModal] = useState(false)
   const [selectedRouteArea, setSelectedRouteArea] = useState<string | null>(null)
   const [showMeterLookup, setShowMeterLookup] = useState(false)
+  const [crewMembers, setCrewMembers] = useState<any[]>([])
+  const [selectedCrewMember, setSelectedCrewMember] = useState<string>('')
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -59,6 +60,7 @@ export default function Dashboard() {
         setUser(session.user)
         loadRoutes()
         loadAssignments()
+        loadCrewMembers()
         checkPendingSync()
       }
       setLoading(false)
@@ -92,6 +94,17 @@ export default function Dashboard() {
         route.meter_count++
       })
       setRoutes(Array.from(routeMap.values()))
+    }
+  }
+
+  async function loadCrewMembers() {
+    const { data, error } = await supabase
+      .from('users')
+      .select('id, email, full_name')
+      .order('full_name')
+    
+    if (data) {
+      setCrewMembers(data)
     }
   }
 
@@ -132,17 +145,20 @@ export default function Dashboard() {
     setLastSync(new Date())
   }
 
-  async function handleSelfAssign() {
-    if (!selectedRouteId || !user) return
+  async function handleAssignToCrew() {
+    if (!selectedRouteId || !selectedCrewMember) return
     
     try {
       const route = routes.find(r => r.id === selectedRouteId)
       if (!route) return
       
+      const crewMember = crewMembers.find(m => m.id === selectedCrewMember)
+      if (!crewMember) return
+      
       const { error } = await supabase
         .from('route_assignments')
         .upsert({
-          user_id: user.id,
+          user_id: crewMember.id,
           route_area: route.area,
           status: 'assigned',
           meters_total: route.meter_count,
@@ -154,7 +170,7 @@ export default function Dashboard() {
       setRoutes(prev =>
         prev.map(r =>
           r.id === selectedRouteId
-            ? { ...r, assigned_to: 'You', status: 'assigned' }
+            ? { ...r, assigned_to: crewMember.full_name || crewMember.email, status: 'assigned' }
             : r
         )
       )
@@ -163,6 +179,7 @@ export default function Dashboard() {
       
       setShowAssignModal(false)
       setSelectedRouteId(null)
+      setSelectedCrewMember('')
     } catch (err: any) {
       console.error('Assignment error:', err)
     }
@@ -277,7 +294,7 @@ export default function Dashboard() {
             <div className="mb-4 flex items-center justify-between">
               <div>
                 <h2 className="text-lg font-semibold text-gray-800 mb-1">Reading Routes</h2>
-                <p className="text-sm text-gray-600">Assign routes to yourself for hands-on reading</p>
+                <p className="text-sm text-gray-600">Assign routes to crew members</p>
               </div>
               <div className="flex gap-2">
                 <button
@@ -296,13 +313,6 @@ export default function Dashboard() {
                 >
                   <History size={18} />
                   <span className="hidden sm:inline">History</span>
-                </button>
-                <button
-                  onClick={() => setShowReadingForm(true)}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  <Plus size={18} />
-                  <span className="hidden sm:inline">Demo Reading</span>
                 </button>
               </div>
             </div>
@@ -400,7 +410,7 @@ export default function Dashboard() {
                       className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
                     >
                       <UserPlus size={18} />
-                      Assign to Me
+                      Assign Crew
                     </button>
                   )}
                 </div>
@@ -417,22 +427,32 @@ export default function Dashboard() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-end sm:items-center justify-center z-50">
           <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md max-h-[80vh] overflow-auto">
             <div className="p-4 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900">Assign Route to Yourself</h3>
-              <p className="text-sm text-gray-600 mt-1">You'll be responsible for reading all meters in this route</p>
+              <h3 className="text-lg font-semibold text-gray-900">Assign Route to Crew Member</h3>
+              <p className="text-sm text-gray-600 mt-1">Select a crew member to assign this route</p>
             </div>
             <div className="p-4 space-y-3">
-              <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                <div className="text-sm font-medium text-blue-900">Self-Assignment Mode</div>
-                <div className="text-xs text-blue-700 mt-1">
-                  As a manager, you can assign yourself to routes for hands-on reading or training purposes.
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Crew Member</label>
+                <select
+                  value={selectedCrewMember}
+                  onChange={(e) => setSelectedCrewMember(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="">Select a crew member...</option>
+                  {crewMembers.map(member => (
+                    <option key={member.id} value={member.id}>
+                      {member.full_name || member.email}
+                    </option>
+                  ))}
+                </select>
               </div>
               <button
-                onClick={handleSelfAssign}
-                className="w-full p-4 rounded-lg border text-left transition-colors border-blue-600 bg-blue-50 hover:bg-blue-100"
+                onClick={handleAssignToCrew}
+                disabled={!selectedCrewMember}
+                className="w-full p-4 rounded-lg border text-left transition-colors border-blue-600 bg-blue-50 hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <div className="flex items-center justify-between">
-                  <span className="font-medium text-blue-900">Assign to Me</span>
+                  <span className="font-medium text-blue-900">Assign Route</span>
                   <UserPlus size={20} className="text-blue-600" />
                 </div>
               </button>
@@ -450,20 +470,6 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
-      )}
-
-      {/* Meter Reading Form */}
-      {showReadingForm && (
-        <MeterReadingForm
-          meterId="M-DEMO-001"
-          meterAddress="123 Main St, Demo City"
-          previousReading={32450}
-          onSuccess={() => {
-            setShowReadingForm(false)
-            checkPendingSync()
-          }}
-          onCancel={() => setShowReadingForm(false)}
-        />
       )}
 
       {/* Reading History Modal */}

@@ -35,6 +35,14 @@ interface ReadingWithMeter {
 type ViewMode = 'grid' | 'list'
 type FilterStatus = 'all' | 'pending' | 'verified' | 'flagged'
 
+function getStatusBadgeClass(status: 'pending' | 'verified' | 'flagged') {
+  switch (status) {
+    case 'verified': return 'bg-green-100 text-green-700 border-green-200'
+    case 'flagged': return 'bg-red-100 text-red-700 border-red-200'
+    default: return 'bg-yellow-100 text-yellow-700 border-yellow-200'
+  }
+}
+
 export function PhotoReview({ onClose }: PhotoReviewProps) {
   const [readings, setReadings] = useState<ReadingWithMeter[]>([])
   const [loading, setLoading] = useState(true)
@@ -135,14 +143,6 @@ export function PhotoReview({ onClose }: PhotoReviewProps) {
 
   function getReviewStatus(reading: ReadingWithMeter): 'pending' | 'verified' | 'flagged' {
     return (reading.metadata?.review_status as any) || 'pending'
-  }
-
-  function getStatusBadgeClass(status: 'pending' | 'verified' | 'flagged') {
-    switch (status) {
-      case 'verified': return 'bg-green-100 text-green-700 border-green-200'
-      case 'flagged': return 'bg-red-100 text-red-700 border-red-200'
-      default: return 'bg-yellow-100 text-yellow-700 border-yellow-200'
-    }
   }
 
   function filteredReadings() {

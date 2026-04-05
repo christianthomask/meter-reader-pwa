@@ -25,12 +25,130 @@
 
 ---
 
+## HANDOFF-08: Route Detail View ⭐ **NEXT UP**
+
+**Story:** US-8.2 - View Route Details & Meter List  
+**Priority:** 🔴 Critical  
+**Estimated Effort:** 4-5 hours  
+**Status:** 📋 Ready
+
+### Objective
+Enable managers to tap a route and see all meters in that route with their reading status.
+
+### Requirements
+- [ ] Create `/routes/[zipCode]` page or modal view
+- [ ] Display route header info (zip code, assigned reader, progress)
+- [ ] List all meters in the route (15 meters typical)
+- [ ] Show meter status: ✅ Read, ⏳ Pending, ❌ Not Read
+- [ ] Display meter address, last reading date, reading value
+- [ ] Click meter → view reading history (optional: modal or navigate)
+- [ ] Filter meters by status (All / Read / Pending)
+- [ ] Show route progress summary at top
+- [ ] Back button to dashboard
+
+### Acceptance Criteria (Must Pass)
+
+```gherkin
+Given I am on the dashboard
+When I tap on Route 90210
+Then I see a detail view with all 15 meters in that route
+
+Given a meter has an approved reading
+When I view the meter list
+Then I see a green checkmark and the reading value
+
+Given a meter has a pending reading
+When I view the meter list
+Then I see a yellow "Pending Review" badge
+
+Given a meter has no recent reading
+When I view the meter list
+Then I see "Not Read" status
+
+Given I tap on a meter
+When the meter detail opens
+Then I see reading history for that meter
+```
+
+### Technical Notes
+
+**Database:**
+- Query `meters` table filtered by `zip_code`
+- JOIN with `readings` to get latest reading per meter
+- Filter readings by `reader_id` (assigned reader)
+
+**Supabase Query:**
+```typescript
+// Get meters for route
+const { data: meters } = await supabase
+  .from('meters')
+  .select(`
+    *,
+    latest_reading:readings (
+      value,
+      reading_timestamp,
+      status,
+      reader_id
+    )
+  `)
+  .eq('zip_code', zipCode)
+  .eq('user_id', managerId)
+  .order('address');
+
+// Get route assignment
+const { data: assignment } = await supabase
+  .from('route_assignments')
+  .select(`
+    *,
+    readers (full_name, email, phone)
+  `)
+  .eq('route_id', zipCode)
+  .eq('manager_id', managerId)
+  .single();
+```
+
+**RLS Policy:** 
+- `meters_select_own` - managers see their own meters
+- `readings_select_workflow` - managers see readings from their readers
+
+**Components to Create:**
+- `frontend/src/app/routes/[zipCode]/page.tsx` (or modal component)
+- `frontend/src/app/components/MeterList.tsx`
+- `frontend/src/app/components/MeterCard.tsx`
+- `frontend/src/app/components/RouteHeader.tsx`
+
+### Files to Create/Modify
+- ✏️ Create: `frontend/src/app/routes/[zipCode]/page.tsx`
+- ✏️ Create: `frontend/src/app/components/MeterList.tsx`
+- ✏️ Create: `frontend/src/app/components/MeterCard.tsx`
+- ✏️ Create: `frontend/src/app/components/RouteHeader.tsx`
+- ✏️ Modify: `frontend/src/app/page.tsx` (dashboard - add click handler to route cards)
+
+### Definition of Done
+- [ ] All acceptance criteria pass
+- [ ] Route header shows assigned reader + progress
+- [ ] Meter list displays all 15 meters
+- [ ] Status badges accurate (Read/Pending/Not Read)
+- [ ] Click meter → shows reading history
+- [ ] Filter by status works
+- [ ] Back button returns to dashboard
+- [ ] Mobile responsive (meter cards stack on small screens)
+- [ ] No console errors
+
+### Report Back With
+1. ✅ List of files created/modified
+2. 🚧 Any blockers (routing, data fetching, etc.)
+3. ❓ Questions for clarification
+4. 📸 Screenshot of route detail view
+
+---
+
 ## HANDOFF-01: Readers List Page
 
 **Story:** US-12.1 - View Readers List  
 **Priority:** 🔴 Critical  
 **Estimated Effort:** 2-3 hours  
-**Status:** 🔍 Awaiting Audit
+**Status:** ✅ Approved
 
 ### Objective
 Create a Readers management page that displays all readers assigned to the logged-in manager.
@@ -437,38 +555,53 @@ const { data: readings } = await supabase
 
 ---
 
-## HANDOFF-06: Approve/Reject Reading
+## HANDOFF-06: Approve/Reject Reading ⭐ **NEXT UP**
 
 **Story:** US-11.2, US-11.3 - Approve/Reject Reading  
 **Priority:** 🔴 Critical  
-**Estimated Effort:** 4-5 hours  
-**Status:** ⏳ Blocked (depends on HANDOFF-05)
+**Estimated Effort:** 5-6 hours  
+**Status:** 📋 Ready
 
 ### Objective
-Enable managers to approve or reject individual readings from the review queue.
+Enable managers to approve or reject readings from both the review queue AND route detail view.
 
 ### Requirements
-- [ ] Reading detail modal shows full info (photo, GPS, notes, history)
+- [ ] Add Approve/Reject buttons to Photo Review queue (PhotoReview.tsx)
+- [ ] Add Approve/Reject buttons to Route Detail view (routes/[zipCode]/page.tsx)
+- [ ] Reading detail modal shows full info (photo, GPS, notes, reader info)
 - [ ] "Approve" button changes status to 'approved'
-- [ ] "Reject" button opens reason selector, changes status to 'rejected'
+- [ ] "Reject" button opens reason selector (dropdown + free text)
+- [ ] **Dropdown auto-populates free text field** (can also manually edit)
 - [ ] Update reading in Supabase
-- [ ] Remove from pending queue on action
-- [ ] Success toast on action
-- [ ] Navigate to next pending reading after action (optional)
+- [ ] **Stay on same reading after action** (status updates inline)
+- [ ] Success toast/banner on action
+- [ ] Queue/detail refreshes to show updated status
 
 ### Acceptance Criteria
 
 ```gherkin
-Given I am viewing a pending reading detail
+Given I am viewing a pending reading in the queue
 When I click "Approve"
 Then the reading status changes to 'approved' and I see a success toast
 
 Given I click "Reject"
-When I select a reason and confirm
-Then the reading status changes to 'rejected'
+When the modal opens
+Then I see a dropdown of rejection reasons
 
-Given I approve a reading
-When I return to the queue
+Given I select a reason from dropdown
+When the modal shows
+Then the free text field is pre-populated with the reason
+
+Given I manually edit the free text field
+When I submit the rejection
+Then my custom text is saved as the rejection reason
+
+Given I approve or reject a reading
+When the action completes
+Then I stay on the same reading (status updates inline)
+
+Given I approve a reading in the queue
+When the queue refreshes
 Then the reading is no longer in the pending list
 ```
 
@@ -483,7 +616,10 @@ Then the reading is no longer in the pending list
 // Approve
 await supabase
   .from('readings')
-  .update({ status: 'approved' })
+  .update({ 
+    status: 'approved',
+    updated_at: new Date().toISOString()
+  })
   .eq('id', readingId);
 
 // Reject
@@ -491,33 +627,68 @@ await supabase
   .from('readings')
   .update({ 
     status: 'rejected',
-    rejection_reason: selectedReason
+    rejection_reason: rejectionReasonText,  // From dropdown or manual
+    updated_at: new Date().toISOString()
   })
   .eq('id', readingId);
 ```
 
-**Rejection Reasons:**
-- `high_usage` - "Usage exceeds 40% increase"
-- `low_usage` - "Usage significantly below normal"
-- `zero_reading` - "Zero reading submitted"
-- `photo_unclear` - "Photo is blurry or unreadable"
-- `gps_mismatch` - "GPS location does not match"
+**Rejection Reasons (Dropdown Options):**
+```typescript
+const REJECTION_REASONS = {
+  high_usage: 'Usage exceeds 40% increase from previous reading',
+  low_usage: 'Usage significantly below normal range',
+  zero_reading: 'Zero reading submitted - possible skip',
+  negative_reading: 'Negative delta detected',
+  photo_unclear: 'Photo is blurry or meter number unreadable',
+  gps_mismatch: 'GPS location does not match meter address',
+  other: 'Other (please specify)'
+};
+```
+
+**UI Pattern (Dropdown + Free Text):**
+```typescript
+const [selectedReason, setSelectedReason] = useState('');
+const [rejectionText, setRejectionText] = useState('');
+
+// When dropdown changes, populate text field
+const handleReasonSelect = (reasonKey: string) => {
+  setSelectedReason(reasonKey);
+  setRejectionText(REJECTION_REASONS[reasonKey] || '');
+};
+
+// User can still edit text field manually
+const handleTextChange = (text: string) => {
+  setRejectionText(text);
+  setSelectedReason('custom'); // Mark as custom
+};
+```
+
+**RLS Policy:** `readings_update_workflow` - managers can update readings from their readers
 
 ### Files to Create/Modify
 - ✏️ Create: `frontend/src/app/components/ReadingDetailModal.tsx`
-- ✏️ Modify: `frontend/src/app/components/ReadingCard.tsx` (add click handler)
+- ✏️ Create: `frontend/src/app/components/ApproveRejectButtons.tsx` (reusable)
+- ✏️ Create: `frontend/src/app/components/RejectionReasonModal.tsx`
+- ✏️ Modify: `frontend/src/app/components/PhotoReview.tsx` (add approve/reject)
+- ✏️ Modify: `frontend/src/app/routes/[zipCode]/page.tsx` (add approve/reject)
 
 ### Definition of Done
 - [ ] All AC pass
-- [ ] Approve works
-- [ ] Reject with reason works
-- [ ] Queue updates after action
+- [ ] Approve works from both queue and route detail
+- [ ] Reject with dropdown + free text works
+- [ ] Custom rejection reasons supported
+- [ ] Stay on same reading after action
+- [ ] Status updates inline (no navigation)
+- [ ] Success/error toasts implemented
+- [ ] Queue/detail refreshes after action
 - [ ] No console errors
 
 ### Report Back With
 1. ✅ Files created/modified
 2. 🚧 Blockers
 3. ❓ Questions
+4. 📸 Screenshot of approve/reject UI
 
 ---
 

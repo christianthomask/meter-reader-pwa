@@ -303,7 +303,8 @@ export default function Dashboard() {
               {routes.map(route => (
                 <div
                   key={route.id}
-                  className={`bg-white rounded-lg shadow-sm border border-gray-200 p-4 ${
+                  onClick={() => router.push(`/routes/${route.area}`)}
+                  className={`bg-white rounded-lg shadow-sm border border-gray-200 p-4 cursor-pointer hover:shadow-md transition-shadow ${
                     route.status === 'completed' ? 'opacity-60 bg-gray-50' : ''
                   }`}
                 >

@@ -90,7 +90,7 @@ export function PhotoReview({ onClose }: PhotoReviewProps) {
       .order('zip_code')
     
     if (data) {
-      const uniqueRoutes = [...new Set(data.map(m => m.zip_code || 'Unknown'))]
+      const uniqueRoutes = Array.from(new Set(data.map(m => m.zip_code || 'Unknown')))
       setRoutes(uniqueRoutes)
     }
   }

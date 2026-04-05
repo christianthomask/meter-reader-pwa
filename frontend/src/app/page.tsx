@@ -3,8 +3,11 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
-import { ClipboardList, ImageIcon, LogOut, MapPin, User, AlertTriangle, CloudOff, CheckCircle, UserPlus, Plus } from 'lucide-react'
+import { ClipboardList, ImageIcon, LogOut, MapPin, User, AlertTriangle, CloudOff, CheckCircle, UserPlus, Plus, History, Search } from 'lucide-react'
 import { MeterReadingForm } from './components/MeterReadingForm'
+import { ReadingHistory } from './components/ReadingHistory'
+import { PhotoReview } from './components/PhotoReview'
+import { MeterLookup } from './components/MeterLookup'
 
 interface Route {
   id: string
@@ -18,10 +21,16 @@ interface Route {
   sync_status?: 'synced' | 'pending' | 'failed'
 }
 
-interface Reader {
+interface RouteAssignment {
   id: string
-  name: string
-  available: boolean
+  user_id: string
+  route_area: string
+  assigned_at: string
+  status: 'assigned' | 'in-progress' | 'completed'
+  started_at?: string
+  completed_at?: string
+  meters_total: number
+  meters_read: number
 }
 
 type Tab = 'routes' | 'photos'
@@ -37,6 +46,10 @@ export default function Dashboard() {
   const [showReadingForm, setShowReadingForm] = useState(false)
   const [pendingReadings, setPendingReadings] = useState(0)
   const [lastSync, setLastSync] = useState<Date>(new Date())
+  const [assignments, setAssignments] = useState<RouteAssignment[]>([])
+  const [showHistoryModal, setShowHistoryModal] = useState(false)
+  const [selectedRouteArea, setSelectedRouteArea] = useState<string | null>(null)
+  const [showMeterLookup, setShowMeterLookup] = useState(false)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -45,6 +58,7 @@ export default function Dashboard() {
       } else {
         setUser(session.user)
         loadRoutes()
+        loadAssignments()
         checkPendingSync()
       }
       setLoading(false)
@@ -52,14 +66,12 @@ export default function Dashboard() {
   }, [router])
 
   async function loadRoutes() {
-    // For POC, load meters as "routes"
     const { data, error } = await supabase
       .from('meters')
       .select('*')
       .limit(50)
 
     if (data) {
-      // Group meters by area/zip as "routes"
       const routeMap = new Map<string, Route>()
       data.forEach((meter, idx) => {
         const area = meter.zip_code || 'Unknown'
@@ -83,8 +95,33 @@ export default function Dashboard() {
     }
   }
 
+  async function loadAssignments() {
+    if (!user) return
+    
+    const { data, error } = await supabase
+      .from('route_assignments')
+      .select('*')
+      .eq('user_id', user.id)
+    
+    if (data) {
+      setAssignments(data)
+      
+      setRoutes(prev => prev.map(route => {
+        const assignment = data.find(a => a.route_area === route.area)
+        if (assignment) {
+          return {
+            ...route,
+            assigned_to: 'You',
+            status: assignment.status,
+            meters_read: assignment.meters_read
+          }
+        }
+        return route
+      }))
+    }
+  }
+
   async function checkPendingSync() {
-    // Check for readings created in last hour without sync
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString()
     const { count } = await supabase
       .from('readings')
@@ -95,18 +132,58 @@ export default function Dashboard() {
     setLastSync(new Date())
   }
 
-  async function handleAssignReader(readerName: string) {
-    if (!selectedRouteId) return
-
-    setRoutes(prev =>
-      prev.map(route =>
-        route.id === selectedRouteId
-          ? { ...route, assigned_to: readerName, status: 'assigned' }
-          : route
+  async function handleSelfAssign() {
+    if (!selectedRouteId || !user) return
+    
+    try {
+      const route = routes.find(r => r.id === selectedRouteId)
+      if (!route) return
+      
+      const { error } = await supabase
+        .from('route_assignments')
+        .upsert({
+          user_id: user.id,
+          route_area: route.area,
+          status: 'assigned',
+          meters_total: route.meter_count,
+          meters_read: 0
+        })
+      
+      if (error) throw error
+      
+      setRoutes(prev =>
+        prev.map(r =>
+          r.id === selectedRouteId
+            ? { ...r, assigned_to: 'You', status: 'assigned' }
+            : r
+        )
       )
-    )
-    setShowAssignModal(false)
-    setSelectedRouteId(null)
+      
+      await loadAssignments()
+      
+      setShowAssignModal(false)
+      setSelectedRouteId(null)
+    } catch (err: any) {
+      console.error('Assignment error:', err)
+    }
+  }
+
+  async function updateAssignmentStatus(area: string, status: RouteAssignment['status']) {
+    if (!user) return
+    
+    const { error } = await supabase
+      .from('route_assignments')
+      .update({ 
+        status,
+        started_at: status === 'in-progress' ? new Date().toISOString() : undefined,
+        completed_at: status === 'completed' ? new Date().toISOString() : undefined
+      })
+      .eq('user_id', user.id)
+      .eq('route_area', area)
+    
+    if (!error) {
+      await loadAssignments()
+    }
   }
 
   const getStatusColor = (status: Route['status']) => {
@@ -200,15 +277,34 @@ export default function Dashboard() {
             <div className="mb-4 flex items-center justify-between">
               <div>
                 <h2 className="text-lg font-semibold text-gray-800 mb-1">Reading Routes</h2>
-                <p className="text-sm text-gray-600">Assign routes to meter readers</p>
+                <p className="text-sm text-gray-600">Assign routes to yourself for hands-on reading</p>
               </div>
-              <button
-                onClick={() => setShowReadingForm(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                <Plus size={18} />
-                <span className="hidden sm:inline">Demo Reading</span>
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setShowMeterLookup(true)}
+                  className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                >
+                  <Search size={18} />
+                  <span className="hidden sm:inline">Lookup</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setSelectedRouteArea(null)
+                    setShowHistoryModal(true)
+                  }}
+                  className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+                >
+                  <History size={18} />
+                  <span className="hidden sm:inline">History</span>
+                </button>
+                <button
+                  onClick={() => setShowReadingForm(true)}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  <Plus size={18} />
+                  <span className="hidden sm:inline">Demo Reading</span>
+                </button>
+              </div>
             </div>
 
             <div className="space-y-3">
@@ -254,9 +350,46 @@ export default function Dashboard() {
                   )}
 
                   {route.assigned_to ? (
-                    <div className="flex items-center gap-2 text-sm">
-                      <User size={16} className="text-blue-600" />
-                      <span className="text-gray-700">Assigned to: <span className="font-medium">{route.assigned_to}</span></span>
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 text-sm">
+                        <User size={16} className="text-blue-600" />
+                        <span className="text-gray-700">Assigned to: <span className="font-medium">{route.assigned_to}</span></span>
+                      </div>
+                      {route.assigned_to === 'You' && (
+                        <div className="flex gap-2">
+                          {route.status === 'assigned' && (
+                            <button
+                              onClick={() => updateAssignmentStatus(route.area, 'in-progress')}
+                              className="flex-1 text-xs px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                            >
+                              Start Reading
+                            </button>
+                          )}
+                          {route.status === 'in-progress' && (
+                            <button
+                              onClick={() => updateAssignmentStatus(route.area, 'completed')}
+                              className="flex-1 text-xs px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
+                            >
+                              Complete
+                            </button>
+                          )}
+                          {route.status === 'completed' && (
+                            <span className="text-xs px-3 py-1 bg-green-100 text-green-700 rounded">
+                              ✓ Completed
+                            </span>
+                          )}
+                        </div>
+                      )}
+                      <button
+                        onClick={() => {
+                          setSelectedRouteArea(route.area)
+                          setShowHistoryModal(true)
+                        }}
+                        className="w-full text-xs px-3 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors flex items-center justify-center gap-1"
+                      >
+                        <History size={12} />
+                        View History
+                      </button>
                     </div>
                   ) : (
                     <button
@@ -267,7 +400,7 @@ export default function Dashboard() {
                       className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
                     >
                       <UserPlus size={18} />
-                      Assign Reader
+                      Assign to Me
                     </button>
                   )}
                 </div>
@@ -275,42 +408,34 @@ export default function Dashboard() {
             </div>
           </div>
         ) : (
-          <div className="max-w-4xl mx-auto">
-            <h2 className="text-lg font-semibold text-gray-800 mb-1">Photo Approval</h2>
-            <p className="text-sm text-gray-600 mb-4">Review and approve meter reading photos</p>
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center">
-              <ImageIcon size={48} className="mx-auto text-gray-400 mb-4" />
-              <p className="text-gray-600">No photos pending approval</p>
-              <p className="text-sm text-gray-500 mt-2">Photos from OCR readings will appear here</p>
-            </div>
-          </div>
+          <PhotoReview />
         )}
       </main>
 
-      {/* Assignment Modal */}
+      {/* Assignment Modal - Self Assign */}
       {showAssignModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-end sm:items-center justify-center z-50">
           <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md max-h-[80vh] overflow-auto">
             <div className="p-4 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900">Select Reader</h3>
+              <h3 className="text-lg font-semibold text-gray-900">Assign Route to Yourself</h3>
+              <p className="text-sm text-gray-600 mt-1">You'll be responsible for reading all meters in this route</p>
             </div>
-            <div className="p-4 space-y-2">
-              {['John Smith', 'Sarah Johnson', 'Mike Davis', 'Emily Chen'].map((name, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => handleAssignReader(name)}
-                  className="w-full p-4 rounded-lg border text-left transition-colors border-gray-200 hover:border-blue-600 hover:bg-blue-50"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-medium text-gray-900">{name}</span>
-                    <span className={`text-xs px-2 py-1 rounded ${
-                      idx % 4 === 2 ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700'
-                    }`}>
-                      {idx % 4 === 2 ? 'On route' : 'Available'}
-                    </span>
-                  </div>
-                </button>
-              ))}
+            <div className="p-4 space-y-3">
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="text-sm font-medium text-blue-900">Self-Assignment Mode</div>
+                <div className="text-xs text-blue-700 mt-1">
+                  As a manager, you can assign yourself to routes for hands-on reading or training purposes.
+                </div>
+              </div>
+              <button
+                onClick={handleSelfAssign}
+                className="w-full p-4 rounded-lg border text-left transition-colors border-blue-600 bg-blue-50 hover:bg-blue-100"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-medium text-blue-900">Assign to Me</span>
+                  <UserPlus size={20} className="text-blue-600" />
+                </div>
+              </button>
             </div>
             <div className="p-4 border-t border-gray-200">
               <button
@@ -333,12 +458,29 @@ export default function Dashboard() {
           meterId="M-DEMO-001"
           meterAddress="123 Main St, Demo City"
           previousReading={32450}
-          onSubmit={(reading, photoUrl, gps) => {
-            console.log('Reading submitted:', { reading, photoUrl, gps })
+          onSuccess={() => {
             setShowReadingForm(false)
             checkPendingSync()
           }}
           onCancel={() => setShowReadingForm(false)}
+        />
+      )}
+
+      {/* Reading History Modal */}
+      {showHistoryModal && (
+        <ReadingHistory
+          routeArea={selectedRouteArea || undefined}
+          onClose={() => {
+            setShowHistoryModal(false)
+            setSelectedRouteArea(null)
+          }}
+        />
+      )}
+
+      {/* Meter Lookup Modal */}
+      {showMeterLookup && (
+        <MeterLookup
+          onClose={() => setShowMeterLookup(false)}
         />
       )}
     </div>

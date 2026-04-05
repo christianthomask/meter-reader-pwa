@@ -49,6 +49,7 @@ export type Reading = {
   cost?: number
   metadata?: Record<string, any>
   photo_url?: string
+  notes?: string
   created_at: string
   updated_at: string
 }

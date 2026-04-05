@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useRouter, useParams } from 'next/navigation'
 import { ArrowLeft, MapPin, User, Phone, Mail, CheckCircle, Clock, Circle, Filter, TrendingUp } from 'lucide-react'
+import { ApproveRejectButtons } from '@/app/components/ApproveRejectButtons'
 
 interface Meter {
   id: string
@@ -339,6 +340,11 @@ export default function RouteDetailPage() {
               const status = getMeterStatus(meter)
               const reading = meter.latest_reading
 
+              function handleReadingUpdated() {
+                // Refresh the meter list after approve/reject
+                loadRouteData(user?.id)
+              }
+
               return (
                 <div
                   key={meter.id}
@@ -384,6 +390,16 @@ export default function RouteDetailPage() {
                           {new Date(reading.reading_timestamp).toLocaleDateString()}
                         </span>
                       </div>
+                      {status === 'pending' && (
+                        <div className="mt-3 flex justify-end">
+                          <ApproveRejectButtons
+                            readingId={reading.id}
+                            onApproveComplete={handleReadingUpdated}
+                            onRejectComplete={handleReadingUpdated}
+                            size="sm"
+                          />
+                        </div>
+                      )}
                     </div>
                   )}
 

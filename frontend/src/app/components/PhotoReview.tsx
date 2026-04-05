@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
-import { X, ZoomIn, Flag, CheckCircle, Calendar, MapPin, Filter, Grid, List, User } from 'lucide-react'
+import { X, ZoomIn, Flag, CheckCircle, Calendar, MapPin, Filter, Grid, List, User, AlertCircle } from 'lucide-react'
+import { ApproveRejectButtons } from './ApproveRejectButtons'
 
 interface PhotoReviewProps {
   onClose?: () => void
@@ -70,6 +71,10 @@ export function PhotoReview({ onClose }: PhotoReviewProps) {
     loadRoutes()
     loadReaderMembers()
   }, [selectedRoute, selectedReader, startDate, endDate])
+
+  function refreshReadings() {
+    loadPhotos()
+  }
 
   async function loadPhotos() {
     setLoading(true)
@@ -328,8 +333,14 @@ export function PhotoReview({ onClose }: PhotoReviewProps) {
                 key={reading.id}
                 reading={reading}
                 onView={() => setSelectedPhoto(reading)}
-                onVerify={() => updateReviewStatus(reading.id, 'verified')}
-                onFlag={() => updateReviewStatus(reading.id, 'flagged')}
+                onApprove={() => {
+                  // Optimistic update
+                  setReadings(prev => prev.filter(r => r.id !== reading.id))
+                }}
+                onReject={() => {
+                  // Optimistic update
+                  setReadings(prev => prev.filter(r => r.id !== reading.id))
+                }}
               />
             ))}
           </div>
@@ -340,8 +351,14 @@ export function PhotoReview({ onClose }: PhotoReviewProps) {
                 key={reading.id}
                 reading={reading}
                 onView={() => setSelectedPhoto(reading)}
-                onVerify={() => updateReviewStatus(reading.id, 'verified')}
-                onFlag={() => updateReviewStatus(reading.id, 'flagged')}
+                onApprove={() => {
+                  // Optimistic update
+                  setReadings(prev => prev.filter(r => r.id !== reading.id))
+                }}
+                onReject={() => {
+                  // Optimistic update
+                  setReadings(prev => prev.filter(r => r.id !== reading.id))
+                }}
               />
             ))}
           </div>
@@ -364,14 +381,14 @@ export function PhotoReview({ onClose }: PhotoReviewProps) {
 // Photo Card Component (Grid View)
 function PhotoCard({ 
   reading, 
-  onView, 
-  onVerify, 
-  onFlag 
+  onView,
+  onApprove,
+  onReject
 }: { 
   reading: ReadingWithMeter
   onView: () => void
-  onVerify: () => void
-  onFlag: () => void
+  onApprove: () => void
+  onReject: () => void
 }) {
   const status = reading.status
 
@@ -440,21 +457,13 @@ function PhotoCard({
 
         {/* Actions */}
         {status === 'pending' && (
-          <div className="flex gap-2 mt-3">
-            <button
-              onClick={onVerify}
-              className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 bg-green-600 text-white rounded hover:bg-green-700 transition-colors text-xs"
-            >
-              <CheckCircle size={12} />
-              Approve
-            </button>
-            <button
-              onClick={onFlag}
-              className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 bg-red-600 text-white rounded hover:bg-red-700 transition-colors text-xs"
-            >
-              <Flag size={12} />
-              Reject
-            </button>
+          <div className="mt-3">
+            <ApproveRejectButtons
+              readingId={reading.id}
+              onApproveComplete={onApprove}
+              onRejectComplete={onReject}
+              size="sm"
+            />
           </div>
         )}
       </div>
@@ -466,13 +475,13 @@ function PhotoCard({
 function PhotoListItem({
   reading,
   onView,
-  onVerify,
-  onFlag
+  onApprove,
+  onReject
 }: {
   reading: ReadingWithMeter
   onView: () => void
-  onVerify: () => void
-  onFlag: () => void
+  onApprove: () => void
+  onReject: () => void
 }) {
   const status = reading.status
 
@@ -526,22 +535,12 @@ function PhotoListItem({
 
       {/* Actions */}
       {status === 'pending' && (
-        <div className="flex gap-2">
-          <button
-            onClick={onVerify}
-            className="p-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
-            title="Approve"
-          >
-            <CheckCircle size={16} />
-          </button>
-          <button
-            onClick={onFlag}
-            className="p-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
-            title="Reject"
-          >
-            <Flag size={16} />
-          </button>
-        </div>
+        <ApproveRejectButtons
+          readingId={reading.id}
+          onApproveComplete={onApprove}
+          onRejectComplete={onReject}
+          size="sm"
+        />
       )}
 
       <button

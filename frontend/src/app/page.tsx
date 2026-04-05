@@ -394,7 +394,8 @@ export default function Dashboard() {
                     </div>
                   ) : (
                     <button
-                      onClick={() => {
+                      onClick={(e) => {
+                        e.stopPropagation()
                         setSelectedRouteId(route.id)
                         setShowAssignModal(true)
                       }}

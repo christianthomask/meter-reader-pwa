@@ -2,11 +2,15 @@
 
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
-import { X, ZoomIn, Flag, CheckCircle, Calendar, MapPin, Filter, Grid, List, User, AlertCircle } from 'lucide-react'
+import { X, ZoomIn, Flag, CheckCircle, Calendar, MapPin, Filter, Grid, List, User, AlertCircle, Edit } from 'lucide-react'
 import { ApproveRejectButtons } from './ApproveRejectButtons'
 
 interface PhotoReviewProps {
   onClose?: () => void
+  filterStatus?: 'pending' | 'approved' | 'rejected' | 'certified'
+  filterExceptionsOnly?: boolean
+  filterNeedsReread?: boolean
+  onExceptionCountChange?: (count: number) => void
 }
 
 interface ReadingWithMeter {
@@ -21,6 +25,11 @@ interface ReadingWithMeter {
   reader_notes: string | null
   reading_type: string
   status: 'pending' | 'approved' | 'rejected' | 'certified'
+  is_exception: boolean
+  original_value?: number | null
+  edited_by?: string | null
+  edited_at?: string | null
+  needs_reread: boolean
   metadata?: {
     review_status?: 'pending' | 'verified' | 'flagged'
     reviewed_at?: string
@@ -33,6 +42,7 @@ interface ReadingWithMeter {
     city: string
     zip_code: string
     meter_type: string
+    route_id?: string
   } | null
   readers: {
     full_name: string
@@ -54,7 +64,13 @@ function getStatusBadgeClass(status: 'pending' | 'verified' | 'flagged') {
   }
 }
 
-export function PhotoReview({ onClose }: PhotoReviewProps) {
+export function PhotoReview({ 
+  onClose, 
+  filterStatus = 'pending',
+  filterExceptionsOnly = false,
+  filterNeedsReread = false,
+  onExceptionCountChange 
+}: PhotoReviewProps) {
   const [readings, setReadings] = useState<ReadingWithMeter[]>([])
   const [loading, setLoading] = useState(true)
   const [viewMode, setViewMode] = useState<ViewMode>('grid')
@@ -65,12 +81,15 @@ export function PhotoReview({ onClose }: PhotoReviewProps) {
   const [selectedPhoto, setSelectedPhoto] = useState<ReadingWithMeter | null>(null)
   const [routes, setRoutes] = useState<string[]>([])
   const [readerMembers, setReaderMembers] = useState<{id: string, name: string}[]>([])
+  const [showExceptionsOnly, setShowExceptionsOnly] = useState(filterExceptionsOnly)
+  const [localExceptionCount, setLocalExceptionCount] = useState(0)
 
   useEffect(() => {
     loadPhotos()
     loadRoutes()
     loadReaderMembers()
-  }, [selectedRoute, selectedReader, startDate, endDate])
+    loadExceptionCount()
+  }, [selectedRoute, selectedReader, startDate, endDate, showExceptionsOnly, filterStatus, filterNeedsReread])
 
   function refreshReadings() {
     loadPhotos()
@@ -88,7 +107,8 @@ export function PhotoReview({ onClose }: PhotoReviewProps) {
           address,
           city,
           zip_code,
-          meter_type
+          meter_type,
+          route_id
         ),
         readers (
           full_name,
@@ -96,9 +116,17 @@ export function PhotoReview({ onClose }: PhotoReviewProps) {
           phone
         )
       `)
-      .eq('status', 'pending')
-      .order('reading_timestamp', { ascending: false })
-      .limit(200)
+      .eq('status', filterStatus)
+
+    // Filter by exception status
+    if (filterStatus === 'pending' && showExceptionsOnly) {
+      query = query.eq('is_exception', true)
+    }
+
+    // Filter by needs_reread
+    if (filterNeedsReread) {
+      query = query.eq('needs_reread', true)
+    }
 
     // Filter by reader
     if (selectedReader !== 'all') {
@@ -119,6 +147,8 @@ export function PhotoReview({ onClose }: PhotoReviewProps) {
       end.setDate(end.getDate() + 1)
       query = query.lte('reading_timestamp', end.toISOString())
     }
+
+    query = query.order('reading_timestamp', { ascending: false }).limit(200)
 
     const { data, error } = await query
 
@@ -156,6 +186,24 @@ export function PhotoReview({ onClose }: PhotoReviewProps) {
         name: m.full_name
       })))
     }
+  }
+
+  async function loadExceptionCount() {
+    if (filterStatus !== 'pending') return
+
+    let query = supabase
+      .from('readings')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'pending')
+
+    if (showExceptionsOnly) {
+      query = query.eq('is_exception', true)
+    }
+
+    const { count } = await query
+    
+    setLocalExceptionCount(count || 0)
+    onExceptionCountChange?.(count || 0)
   }
 
   async function updateReviewStatus(readingId: string, status: 'verified' | 'flagged') {
@@ -248,6 +296,23 @@ export function PhotoReview({ onClose }: PhotoReviewProps) {
 
         {/* Filters */}
         <div className="flex flex-wrap gap-3 items-center">
+          {filterStatus === 'pending' && (
+            <div className="flex items-center gap-2">
+              <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={showExceptionsOnly}
+                  onChange={(e) => setShowExceptionsOnly(e.target.checked)}
+                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                />
+                <span className="font-medium">Exceptions Only</span>
+              </label>
+              <span className="text-sm text-red-600 font-medium">
+                {localExceptionCount} to Review
+              </span>
+            </div>
+          )}
+
           <div className="flex items-center gap-2">
             <User size={16} className="text-gray-500" />
             <select
@@ -460,6 +525,7 @@ function PhotoCard({
           <div className="mt-3">
             <ApproveRejectButtons
               readingId={reading.id}
+              currentValue={reading.value}
               onApproveComplete={onApprove}
               onRejectComplete={onReject}
               size="sm"
@@ -537,6 +603,7 @@ function PhotoListItem({
       {status === 'pending' && (
         <ApproveRejectButtons
           readingId={reading.id}
+          currentValue={reading.value}
           onApproveComplete={onApprove}
           onRejectComplete={onReject}
           size="sm"
@@ -566,6 +633,26 @@ function PhotoDetailModal({
   onFlag: () => void
 }) {
   const status = (reading.metadata?.review_status as any) || 'pending'
+  const [usageHistory, setUsageHistory] = useState<any[]>([])
+
+  useEffect(() => {
+    if (reading?.meter_id) {
+      loadUsageHistory(reading.meter_id)
+    }
+  }, [reading])
+
+  async function loadUsageHistory(meterId: string) {
+    const { data, error } = await supabase
+      .from('readings')
+      .select('value, reading_timestamp, status')
+      .eq('meter_id', meterId)
+      .order('reading_timestamp', { ascending: false })
+      .limit(6)
+
+    if (data) {
+      setUsageHistory(data)
+    }
+  }
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50 p-4">
@@ -636,6 +723,54 @@ function PhotoDetailModal({
                 </div>
               </div>
             )}
+
+            {/* Usage History */}
+            <div>
+              <h4 className="text-sm font-medium text-gray-900 mb-2">
+                Usage History (Last 6 Readings)
+              </h4>
+              <div className="bg-gray-50 rounded-lg p-3">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-200">
+                      <th className="text-left py-2 text-gray-600 font-medium">Date</th>
+                      <th className="text-right text-gray-600 font-medium">Value</th>
+                      <th className="text-right text-gray-600 font-medium">Delta</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {usageHistory.map((histReading, idx) => {
+                      const delta = idx < usageHistory.length - 1 
+                        ? histReading.value - usageHistory[idx + 1].value 
+                        : 0;
+                      return (
+                        <tr key={idx} className="border-b border-gray-100 last:border-0">
+                          <td className="py-2 text-gray-900">
+                            {new Date(histReading.reading_timestamp).toLocaleDateString()}
+                          </td>
+                          <td className="text-right font-medium">
+                            {histReading.value.toLocaleString()}
+                          </td>
+                          <td className={`text-right ${
+                            delta > 0 ? 'text-red-600' : 
+                            delta < 0 ? 'text-green-600' : 'text-gray-400'
+                          }`}>
+                            {delta !== 0 ? (delta > 0 ? '+' : '') : ''}{delta !== 0 ? delta.toLocaleString() : '—'}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    {usageHistory.length === 0 && (
+                      <tr>
+                        <td colSpan={3} className="py-4 text-center text-gray-500 text-xs">
+                          No previous readings
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
 
             {/* Actions */}
             {status === 'pending' && (

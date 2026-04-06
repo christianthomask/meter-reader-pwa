@@ -3,12 +3,14 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
-import { ClipboardList, ImageIcon, LogOut, MapPin, User, AlertTriangle, CloudOff, CheckCircle, UserPlus, Plus, History, Search } from 'lucide-react'
+import { ClipboardList, ImageIcon, LogOut, MapPin, User, AlertTriangle, CloudOff, CheckCircle, UserPlus, Plus, History, Search, Flag } from 'lucide-react'
 import { MeterReadingForm } from './components/MeterReadingForm'
 import { ReadingHistory } from './components/ReadingHistory'
 import { PhotoReview } from './components/PhotoReview'
 import { MeterLookup } from './components/MeterLookup'
 import { AssignRouteModal } from './components/AssignRouteModal'
+import { CitySelector } from './components/CitySelector'
+import type { City, Route as RouteType } from '@/lib/supabase'
 
 interface Route {
   id: string
@@ -20,6 +22,7 @@ interface Route {
   meters_read?: number
   rechecks_detected?: number
   sync_status?: 'synced' | 'pending' | 'failed'
+  route_id?: string // Actual route table ID
 }
 
 interface RouteAssignment {
@@ -46,7 +49,7 @@ interface Reader {
   assigned_routes_count: number
 }
 
-type Tab = 'routes' | 'photos'
+type Tab = 'routes' | 'photos' | 'rereads'
 
 export default function Dashboard() {
   const router = useRouter()
@@ -64,6 +67,9 @@ export default function Dashboard() {
   const [showMeterLookup, setShowMeterLookup] = useState(false)
   const [readers, setReaders] = useState<Reader[]>([])
   const [selectedReaderId, setSelectedReaderId] = useState<string>('')
+  const [selectedCityId, setSelectedCityId] = useState<string>('')
+  const [exceptionCount, setExceptionCount] = useState(0)
+  const [rereadCount, setRereadCount] = useState(0)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -75,38 +81,50 @@ export default function Dashboard() {
         loadAssignments()
         loadReaders()
         checkPendingSync()
+        loadExceptionCount()
+        loadRereadCount()
       }
       setLoading(false)
     })
   }, [router])
 
+  useEffect(() => {
+    if (selectedCityId) {
+      loadRoutes()
+      loadAssignments()
+    }
+  }, [selectedCityId])
+
   async function loadRoutes() {
-    const { data, error } = await supabase
-      .from('meters')
-      .select('*')
-      .limit(50)
+    if (!selectedCityId && !user) return
+
+    let query = supabase
+      .from('routes')
+      .select(`
+        *,
+        meters (count)
+      `)
+
+    if (selectedCityId) {
+      query = query.eq('city_id', selectedCityId)
+    }
+
+    const { data, error } = await query
 
     if (data) {
-      const routeMap = new Map<string, Route>()
-      data.forEach((meter, idx) => {
-        const area = meter.zip_code || 'Unknown'
-        if (!routeMap.has(area)) {
-          routeMap.set(area, {
-            id: area,
-            name: `Route ${String.fromCharCode(65 + (idx % 26))}${Math.floor(idx / 26) + 1}`,
-            area: area,
-            meter_count: 0,
-            assigned_to: null,
-            status: 'unassigned',
-            meters_read: 0,
-            rechecks_detected: 0,
-            sync_status: 'synced'
-          })
-        }
-        const route = routeMap.get(area)!
-        route.meter_count++
-      })
-      setRoutes(Array.from(routeMap.values()))
+      const routeList: Route[] = data.map((route: any) => ({
+        id: route.id,
+        name: route.name,
+        area: route.name, // Use route name as area for backwards compatibility
+        meter_count: route.meters?.[0]?.count || route.total_meters || 0,
+        assigned_to: null,
+        status: route.status,
+        meters_read: route.meters_read,
+        rechecks_detected: 0,
+        sync_status: 'synced',
+        route_id: route.id
+      }))
+      setRoutes(routeList)
     }
   }
 
@@ -167,6 +185,26 @@ export default function Dashboard() {
     setLastSync(new Date())
   }
 
+  async function loadExceptionCount() {
+    const { count } = await supabase
+      .from('readings')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'pending')
+      .eq('is_exception', true)
+
+    setExceptionCount(count || 0)
+  }
+
+  async function loadRereadCount() {
+    const { count } = await supabase
+      .from('readings')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'rejected')
+      .eq('needs_reread', true)
+
+    setRereadCount(count || 0)
+  }
+
   async function updateAssignmentStatus(routeId: string, status: RouteAssignment['status']) {
     if (!user) return
     
@@ -208,6 +246,7 @@ export default function Dashboard() {
       <header className="bg-blue-600 text-white p-4 shadow-md">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
+            <CitySelector onCityChange={setSelectedCityId} />
             <div>
               <h1 className="text-xl font-semibold">Meter Reading Manager</h1>
               {user && <p className="text-sm text-blue-100">{user.email}</p>}
@@ -247,6 +286,27 @@ export default function Dashboard() {
           >
             <ImageIcon size={20} />
             <span>Photos</span>
+            {exceptionCount > 0 && (
+              <span className="ml-1 bg-red-500 text-white px-2 py-0.5 rounded-full text-xs font-medium">
+                {exceptionCount}
+              </span>
+            )}
+          </button>
+          <button
+            onClick={() => setActiveTab('rereads')}
+            className={`flex-1 flex items-center justify-center gap-2 py-4 border-b-2 transition-colors ${
+              activeTab === 'rereads'
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-gray-600'
+            }`}
+          >
+            <Flag size={20} />
+            <span>Rereads</span>
+            {rereadCount > 0 && (
+              <span className="ml-1 bg-orange-500 text-white px-2 py-0.5 rounded-full text-xs font-medium">
+                {rereadCount}
+              </span>
+            )}
           </button>
         </div>
       </nav>
@@ -409,8 +469,17 @@ export default function Dashboard() {
               ))}
             </div>
           </div>
+        ) : activeTab === 'photos' ? (
+          <PhotoReview 
+            filterStatus="pending"
+            filterExceptionsOnly={true}
+            onExceptionCountChange={setExceptionCount}
+          />
         ) : (
-          <PhotoReview />
+          <PhotoReview 
+            filterStatus="rejected"
+            filterNeedsReread={true}
+          />
         )}
       </main>
 

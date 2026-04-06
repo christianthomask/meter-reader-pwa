@@ -155,18 +155,25 @@ A **mobile-first Progressive Web App for managers** to review, approve, and mana
 | D5 | Database Schema + Mock Data | Sprint 1 | ✅ Complete | Dev | ✅ Done |
 | D6 | ~~Reading Submission (DB)~~ | N/A | ⛔ **Removed** | Dev | N/A |
 | D7 | ~~Photo Upload Integration~~ | N/A | ⛔ **Removed** | Dev | N/A |
-| D8 | Route Assignment (Manager → Reader) | Sprint 2 | ❌ Not Started | Dev | 🔴 **Critical** |
-| D9 | Reading History Display | Sprint 2 | ❌ Not Started | Dev | 🟠 High |
-| D10 | Offline Sync Framework | Sprint 3 | ❌ Not Started | Dev | 🟠 High |
-| D11 | Photo Review Workflow (Approve/Reject) | Sprint 2 | ❌ Not Started | Dev | 🔴 **Critical** |
-| D12 | Reader Management (CRUD) | Sprint 2 | ❌ Not Started | Dev | 🔴 **Critical** |
-| D13 | Meter Lookup (Search) | Sprint 2 | ❌ Not Started | Dev | 🟠 High |
-| D14 | Notes/Comments on Readings | Sprint 2 | ❌ Not Started | Dev | 🟢 Medium |
-| D15 | Usage Comparison Display | Sprint 3 | ❌ Not Started | Dev | 🟢 Medium |
-| D16 | Enhanced Photo Review (Side-by-Side) | Sprint 3 | ❌ Not Started | Dev | 🟢 Medium |
-| D17 | GPS Verification Display (Map) | Sprint 3 | ❌ Not Started | Dev | 🟢 Medium |
-| D18 | Export Readings (CSV) | Sprint 3 | ❌ Not Started | Dev | 🟠 High |
-| D19 | Cycle/Status Management | Sprint 2 | ❌ Not Started | Dev | 🔴 **Critical** |
+| D8 | Route Assignment (Manager → Reader) | Sprint 2 | ✅ Complete | Dev | ✅ Done |
+| D9 | Reading History Display | Sprint 2 | ✅ Complete | Dev | ✅ Done |
+| D10 | Offline Sync Framework | Sprint 4 | ❌ Not Started | Dev | 🟠 High |
+| D11 | Photo Review Workflow (Approve/Reject) | Sprint 2 | ✅ Complete | Dev | ✅ Done |
+| D12 | Reader Management (CRUD) | Sprint 2 | ✅ Complete | Dev | ✅ Done |
+| D13 | Meter Lookup (Search) | Sprint 2 | ✅ Complete | Dev | ✅ Done |
+| D14 | Notes/Comments on Readings | Sprint 2 | ✅ Complete | Dev | ✅ Done |
+| D15 | Usage Comparison Display | Sprint 4 | ❌ Not Started | Dev | 🟢 Medium |
+| D16 | Enhanced Photo Review (Side-by-Side) | Sprint 4 | ❌ Not Started | Dev | 🟢 Medium |
+| D17 | GPS Verification Display (Map) | Sprint 4 | ❌ Not Started | Dev | 🟢 Medium |
+| D18 | Export Readings (CSV) | Sprint 4 | ❌ Not Started | Dev | 🟠 High |
+| D19 | Cycle/Status Management | Sprint 2 | ⚠️ Partial | Dev | 🔄 In Progress |
+| **D22** | **City/Route Hierarchy** (GAP-01) | **Sprint 3** | ❌ Not Started | Dev | 🔴 **Critical** |
+| **D23** | **Exception Detection** (GAP-02) | **Sprint 3** | ❌ Not Started | Dev | 🔴 **Critical** |
+| **D24** | **Reading Edit Workflow** (GAP-03) | **Sprint 3** | ❌ Not Started | Dev | 🔴 **Critical** |
+| **D25** | **Usage History in Review** (GAP-04) | **Sprint 3** | ❌ Not Started | Dev | 🟠 **High** |
+| **D26** | **Reread Queue** (GAP-05) | **Sprint 3** | ❌ Not Started | Dev | 🟠 **High** |
+| **D27** | **Reader Totals Report** (GAP-06) | **Sprint 3** | ❌ Not Started | Dev | 🟠 **High** |
+| **D28** | **Reader Tardiness Report** (GAP-06) | **Sprint 3** | ❌ Not Started | Dev | 🟠 **High** |
 
 ---
 
@@ -730,6 +737,33 @@ Total:    ███░░░░░░░░░░░░░░░░░  15%
 ---
 
 ## 📝 Change Log
+
+### 2026-04-05 (v0.3.1 - Manager Workflow Gaps Identified)
+- ✅ **Manager workflow analysis completed** (guide/manager_workflow_walkthrough/MANAGER-WORKFLOWS.md)
+- ✅ **Gap analysis document created** (guide/manager_workflow_walkthrough/GAP-ANALYSIS.md)
+- ✅ **7 critical gaps identified** from manager's daily workflow
+- ✅ **HANDOFF-09 created** - Critical Workflow Gaps (City/Routes/Meters hierarchy, exception detection, reading edit, usage history, reread queue)
+- ✅ **HANDOFF-10 created** - Reader Performance Reports (Reader Totals & Tardiness)
+- ✅ **Legacy coverage updated** - Now tracking City > Routes > Meters hierarchy requirement
+- 🔄 **Sprint 2 completion** - 87.5% complete (7/8 handoffs done, awaiting HANDOFF-07)
+- 📋 **Sprint 3 replanning needed** - New critical gaps take priority over offline sync
+
+**Key Changes from Manager Feedback:**
+- ❌ **Zip code grouping removed** - Manager uses City > Routes > Meters hierarchy (no zip code categorization)
+- 🔴 **Exception-based photo queue** - Only 3.4% of readings need review (unusually high/low), not all pending
+- 🔴 **Reading edit capability** - Manager must correct typos inline without rejecting
+- 🔴 **Usage history in review** - Required for informed approval decisions
+- 🟠 **Reread queue** - Separate queue for rejected readings
+- 🟠 **Reader performance reports** - Manager explicitly uses daily (previously marked "removed")
+
+**New Deliverables Added:**
+- D22: City/Route Hierarchy (GAP-01) - Sprint 3 Priority 1
+- D23: Exception Detection (GAP-02) - Sprint 3 Priority 1
+- D24: Reading Edit Workflow (GAP-03) - Sprint 3 Priority 1
+- D25: Usage History in Review (GAP-04) - Sprint 3 Priority 1
+- D26: Reread Queue (GAP-05) - Sprint 3 Priority 2
+- D27: Reader Totals Report (GAP-06) - Sprint 3 Priority 2
+- D28: Reader Tardiness Report (GAP-06) - Sprint 3 Priority 2
 
 ### 2026-04-04 (v0.3.0 - Managers-Only Scope)
 - ✅ Created PROJECT-TRACKER.md

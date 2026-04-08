@@ -59,7 +59,6 @@ import {
   useApproveReading,
   useRejectReading,
   MOCK_READERS,
-  type ReviewReading,
 } from "@/hooks/use-readings";
 import type { ExceptionType } from "@/types/api";
 

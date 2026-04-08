@@ -94,7 +94,6 @@ function formatDateTime(dateStr: string): string {
 // ---- Build TanStack columns from report config ----
 function buildColumns(
   configColumns: ReportColumnConfig[],
-  reportType: string
 ): ColumnDef<ReportRow>[] {
   return configColumns.map((col) => {
     const colDef: ColumnDef<ReportRow> = {
@@ -177,8 +176,8 @@ export default function ReportTypePage() {
   // Build columns from config
   const columns = useMemo(() => {
     if (!reportConfig) return [];
-    return buildColumns(reportConfig.columns, reportType);
-  }, [reportConfig, reportType]);
+    return buildColumns(reportConfig.columns);
+  }, [reportConfig]);
 
   const tableData = useMemo(() => reportData ?? [], [reportData]);
 

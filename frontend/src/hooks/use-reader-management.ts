@@ -126,7 +126,7 @@ const mockReaderStats: Record<string, ReaderStats> = {
 };
 
 // In-memory store for mutations (mock persistence)
-let readersStore = [...mockReaders];
+const readersStore = [...mockReaders];
 
 export function getReaderStats(readerId: string): ReaderStats {
   return mockReaderStats[readerId] ?? { routesAssigned: 0, totalReadings: 0 };

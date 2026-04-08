@@ -1,24 +1,37 @@
-import type { Metadata } from 'next'
-import { Inter } from 'next/font/google'
-import './globals.css'
+import type { Metadata, Viewport } from "next";
+import localFont from "next/font/local";
+import { Providers } from "@/lib/providers";
+import "./globals.css";
 
-const inter = Inter({ subsets: ['latin'] })
+const geistSans = localFont({
+  src: "./fonts/GeistVF.woff",
+  variable: "--font-geist-sans",
+  weight: "100 900",
+});
 
 export const metadata: Metadata = {
-  title: 'Meter Reader PWA',
-  description: 'Track and manage utility meter readings',
-  manifest: '/manifest.json',
-  themeColor: '#3b82f6',
-}
+  title: "RouteManager",
+  description: "Alexander's Contract Services - Meter Reading Management Portal",
+  manifest: "/manifest.json",
+};
+
+export const viewport: Viewport = {
+  themeColor: "#2563eb",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+};
 
 export default function RootLayout({
   children,
-}: {
-  children: React.ReactNode
-}) {
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
   return (
-    <html lang="en">
-      <body className={inter.className}>{children}</body>
+    <html lang="en" suppressHydrationWarning>
+      <body className={`${geistSans.variable} font-sans antialiased`}>
+        <Providers>{children}</Providers>
+      </body>
     </html>
-  )
+  );
 }

@@ -203,10 +203,10 @@ Track all CEO decisions here so agents don't re-ask resolved questions.
 
 | # | Decision | Answer | Date | Phase Impact |
 |---|----------|--------|------|--------------|
-| D1 | Exception thresholds | *pending* | — | Phase 2 |
-| D2 | Reading edit authority | *pending* | — | Phase 2 |
-| D3 | Rejection workflow | *pending* | — | Phase 2 |
-| D4 | Cycle status permissions | *pending* | — | Phase 2 |
+| D1 | Exception thresholds | **40% delta** from previous = high/low. Zero readings always flagged. Negative delta always flagged. | 2026-04-08 | Phase 2 |
+| D2 | Reading edit authority | **Yes, edit with audit trail.** Original value preserved, editor + timestamp logged. | 2026-04-08 | Phase 2 |
+| D3 | Rejection workflow | **Reread queue, reassignable.** Manager can assign to original reader or a different reader. Manager adds reason/note. | 2026-04-08 | Phase 2 |
+| D4 | Cycle status permissions | **Managers for their cities.** Managers trigger transitions on assigned cities. Admins can do any city. | 2026-04-08 | Phase 2 |
 | D5 | Report scope review | *pending* | — | Phase 3 |
 | D6 | Sample printed report | *pending* | — | Phase 3 |
 | D7 | Designer staging access | *pending* | — | Phase 3 |

@@ -3,8 +3,8 @@ import type {
   APIGatewayProxyResultV2,
 } from 'aws-lambda';
 import { query, queryOne } from '../lib/db';
-import { ok, notFound, badRequest, serverError } from '../lib/response';
-import { extractUser } from '../lib/auth';
+import { ok, notFound, badRequest, forbidden, serverError } from '../lib/response';
+import { extractUser, requireRole } from '../lib/auth';
 import { CITIES_LIST, CITY_DETAIL, CITY_STATS } from '../db/queries';
 
 // ---------------------------------------------------------------------------
@@ -81,6 +81,13 @@ export async function handler(
   try {
     const method = event.requestContext.http.method;
     const path = event.rawPath;
+    const user = extractUser(event);
+
+    try {
+      requireRole(user, ['admin', 'manager']);
+    } catch {
+      return forbidden();
+    }
 
     // GET /cities
     if (method === 'GET' && path === '/cities') {

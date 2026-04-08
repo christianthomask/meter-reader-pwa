@@ -19,7 +19,7 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      // TODO: Replace with Cognito auth
+      // TODO: Replace with real Cognito auth in Phase 2
       // For now, mock login for development
       if (email && password) {
         setUser({

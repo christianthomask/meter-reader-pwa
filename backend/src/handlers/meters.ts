@@ -3,7 +3,8 @@ import type {
   APIGatewayProxyResultV2,
 } from 'aws-lambda';
 import { query, queryOne } from '../lib/db';
-import { ok, badRequest, notFound, serverError } from '../lib/response';
+import { ok, badRequest, notFound, forbidden, serverError } from '../lib/response';
+import { extractUser, requireRole } from '../lib/auth';
 import { METERS_BY_CITY, METER_DETAIL, METER_LOOKUP } from '../db/queries';
 
 // ---------------------------------------------------------------------------
@@ -46,6 +47,13 @@ export async function handler(
     const method = event.requestContext.http.method;
     const path = event.rawPath;
     const qs = event.queryStringParameters ?? {};
+    const user = extractUser(event);
+
+    try {
+      requireRole(user, ['admin', 'manager']);
+    } catch {
+      return forbidden();
+    }
 
     // GET /cities/:id/meters
     const cityMetersMatch = path.match(/^\/cities\/([^/]+)\/meters$/);

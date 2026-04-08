@@ -9,9 +9,10 @@ import {
   noContent,
   badRequest,
   notFound,
+  forbidden,
   serverError,
 } from '../lib/response';
-import { extractUser } from '../lib/auth';
+import { extractUser, requireRole } from '../lib/auth';
 import { ASSIGNMENTS_BY_CITY, ASSIGNMENT_DETAIL } from '../db/queries';
 
 // ---------------------------------------------------------------------------
@@ -77,6 +78,12 @@ async function updateAssignment(
     status?: string;
     reader_id?: string;
   };
+
+  // SEC-006: Validate assignment status against allowlist
+  const validStatuses = ['pending', 'in_progress', 'completed'];
+  if (status && !validStatuses.includes(status)) {
+    return badRequest(`status must be one of: ${validStatuses.join(', ')}`);
+  }
 
   const sets: string[] = ['updated_at = NOW()'];
   const values: unknown[] = [];
@@ -187,6 +194,12 @@ export async function handler(
     const method = event.requestContext.http.method;
     const path = event.rawPath;
     const user = extractUser(event);
+
+    try {
+      requireRole(user, ['admin', 'manager']);
+    } catch {
+      return forbidden();
+    }
 
     // GET /cities/:id/assignments
     const cityMatch = path.match(/^\/cities\/([^/]+)\/assignments$/);

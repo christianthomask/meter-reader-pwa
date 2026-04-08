@@ -3,8 +3,8 @@ import type {
   APIGatewayProxyResultV2,
 } from 'aws-lambda';
 import { query, queryOne } from '../lib/db';
-import { ok, badRequest, notFound, serverError } from '../lib/response';
-import { extractUser } from '../lib/auth';
+import { ok, badRequest, notFound, forbidden, serverError } from '../lib/response';
+import { extractUser, requireRole } from '../lib/auth';
 import {
   READINGS_EXCEPTIONS,
   READINGS_REREADS,
@@ -151,6 +151,12 @@ export async function handler(
     const method = event.requestContext.http.method;
     const path = event.rawPath;
     const user = extractUser(event);
+
+    try {
+      requireRole(user, ['admin', 'manager']);
+    } catch {
+      return forbidden();
+    }
 
     // GET /cities/:id/readings/exceptions
     const exceptionsMatch = path.match(

@@ -31,3 +31,19 @@ export function extractUser(
 
   return { userId, email, role, groups };
 }
+
+/**
+ * Verify that the authenticated user has one of the allowed roles.
+ * Throws an object with `statusCode` 403 when the check fails so the
+ * caller can return an appropriate HTTP response.
+ */
+export function requireRole(
+  user: AuthUser,
+  allowedRoles: string[]
+): void {
+  if (!allowedRoles.includes(user.role)) {
+    const err: any = new Error('Forbidden – insufficient role');
+    err.statusCode = 403;
+    throw err;
+  }
+}

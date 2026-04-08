@@ -8,9 +8,10 @@ import {
   created,
   badRequest,
   notFound,
+  forbidden,
   serverError,
 } from '../lib/response';
-import { extractUser } from '../lib/auth';
+import { extractUser, requireRole } from '../lib/auth';
 import { CYCLES_BY_CITY, CYCLE_DETAIL } from '../db/queries';
 
 // ---------------------------------------------------------------------------
@@ -148,6 +149,12 @@ export async function handler(
     const method = event.requestContext.http.method;
     const path = event.rawPath;
     const user = extractUser(event);
+
+    try {
+      requireRole(user, ['admin', 'manager']);
+    } catch {
+      return forbidden();
+    }
 
     // GET /cities/:id/cycles
     const cityCyclesMatch = path.match(/^\/cities\/([^/]+)\/cycles$/);

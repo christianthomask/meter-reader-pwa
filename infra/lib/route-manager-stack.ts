@@ -67,7 +67,7 @@ export class RouteManagerStack extends cdk.Stack {
       userPoolClientName: "meter-reader-frontend",
       authFlows: {
         userSrp: true,
-        userPassword: true, // useful for testing; disable in production
+        // SEC-007: USER_PASSWORD_AUTH removed – use SRP only
       },
       oAuth: {
         flows: { authorizationCodeGrant: true },
@@ -282,7 +282,11 @@ export class RouteManagerStack extends cdk.Stack {
       });
 
       fn.addToRolePolicy(secretsReadPolicy);
-      fn.addToRolePolicy(s3ReadWritePolicy);
+
+      // SEC-005: Only grant S3 read/write to photos and cycles Lambdas
+      if (domain === 'photos' || domain === 'cycles') {
+        fn.addToRolePolicy(s3ReadWritePolicy);
+      }
 
       lambdaFunctions[domain] = fn;
     }

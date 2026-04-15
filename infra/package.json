@@ -1,0 +1,21 @@
+{
+  "name": "meter-reader-infra",
+  "version": "1.0.0",
+  "description": "AWS CDK infrastructure for the Water Meter Reading Portal",
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc -w",
+    "cdk": "cdk",
+    "synth": "cdk synth",
+    "deploy": "cdk deploy",
+    "diff": "cdk diff"
+  },
+  "dependencies": {
+    "aws-cdk-lib": "^2.170.0",
+    "constructs": "^10.3.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.0",
+    "@types/node": "^20.11.0"
+  }
+}
